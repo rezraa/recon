@@ -1,0 +1,274 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* =============================================================================
+   DARK THEME (Default) — "Dark Canvas, Pastel Data"
+   Dark is the default — no class needed on <html>
+   ============================================================================= */
+:root {
+  --radius: 0.5rem;
+
+  /* shadcn variables — mapped to our design token values (oklch conversions) */
+  --background: oklch(0.205 0.015 254);
+  --foreground: oklch(0.929 0.008 240);
+  --card: oklch(0.255 0.013 254);
+  --card-foreground: oklch(0.929 0.008 240);
+  --popover: oklch(0.255 0.013 254);
+  --popover-foreground: oklch(0.929 0.008 240);
+  --primary: oklch(0.788 0.08 240);
+  --primary-foreground: oklch(0.205 0.015 254);
+  --secondary: oklch(0.295 0.012 254);
+  --secondary-foreground: oklch(0.929 0.008 240);
+  --muted: oklch(0.305 0.012 254);
+  --muted-foreground: oklch(0.589 0.02 248);
+  --accent: oklch(0.77 0.1 195);
+  --accent-foreground: oklch(0.205 0.015 254);
+  --destructive: oklch(0.77 0.1 15);
+  --border: oklch(0.305 0.012 252);
+  --input: oklch(0.305 0.012 252);
+  --ring: oklch(0.788 0.08 240);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.255 0.013 254);
+  --sidebar-foreground: oklch(0.929 0.008 240);
+  --sidebar-primary: oklch(0.788 0.08 240);
+  --sidebar-primary-foreground: oklch(0.205 0.015 254);
+  --sidebar-accent: oklch(0.305 0.012 254);
+  --sidebar-accent-foreground: oklch(0.929 0.008 240);
+  --sidebar-border: oklch(0.305 0.012 252);
+  --sidebar-ring: oklch(0.788 0.08 240);
+
+  /* Custom Design Tokens — Base Canvas */
+  --bg:            hsl(222, 19%, 10%);
+  --bg-elevated:   hsl(222, 17%, 14%);
+  --bg-hover:      hsl(222, 15%, 18%);
+  --fg:            hsl(210, 20%, 92%);
+  --fg-muted:      hsl(215, 15%, 55%);
+  --border-hover:  hsl(220, 15%, 30%);
+
+  /* Match Score Colors */
+  --match-high:       hsl(158, 60%, 72%);
+  --match-high-bg:    hsl(158, 40%, 15%);
+  --match-medium:     hsl(35, 70%, 75%);
+  --match-medium-bg:  hsl(35, 40%, 15%);
+  --match-low:        hsl(0, 55%, 75%);
+  --match-low-bg:     hsl(0, 35%, 15%);
+
+  /* Pipeline Stage Colors */
+  --pipeline-discovered:  hsl(205, 70%, 76%);
+  --pipeline-interested:  hsl(180, 55%, 72%);
+  --pipeline-applied:     hsl(230, 65%, 78%);
+  --pipeline-screening:   hsl(265, 55%, 78%);
+  --pipeline-interview:   hsl(215, 70%, 78%);
+  --pipeline-offer:       hsl(145, 55%, 72%);
+  --pipeline-rejected:    hsl(220, 12%, 65%);
+
+  /* Benefit Tag Colors */
+  --tag-remote:   hsl(205, 70%, 76%);
+  --tag-salary:   hsl(145, 55%, 72%);
+  --tag-health:   hsl(15, 65%, 76%);
+  --tag-pto:      hsl(180, 55%, 72%);
+  --tag-401k:     hsl(40, 70%, 76%);
+  --tag-equity:   hsl(280, 50%, 78%);
+
+  /* Brand — NOTE: --primary, --accent, --destructive are defined above as shadcn
+     oklch variables mapped to our design token values. Use those directly.
+     Only --primary-hover is additional (no shadcn equivalent). */
+  --primary-hover:  hsl(210, 70%, 65%);
+}
+
+/* =============================================================================
+   LIGHT THEME — Activated by adding .light class to <html>
+   ============================================================================= */
+html.light {
+  /* shadcn variables — light theme (oklch conversions) */
+  --background: oklch(0.977 0.005 250);
+  --foreground: oklch(0.21 0.02 254);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 254);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.02 254);
+  --primary: oklch(0.788 0.08 240);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.005 250);
+  --secondary-foreground: oklch(0.21 0.02 254);
+  --muted: oklch(0.955 0.005 250);
+  --muted-foreground: oklch(0.54 0.015 248);
+  --accent: oklch(0.52 0.08 195);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.48 0.15 20);
+  --border: oklch(0.91 0.005 252);
+  --input: oklch(0.91 0.005 252);
+  --ring: oklch(0.788 0.08 240);
+
+  /* Custom Design Tokens — Base Canvas (Light) */
+  --bg:            hsl(210, 20%, 97%);
+  --bg-elevated:   hsl(0, 0%, 100%);
+  --bg-hover:      hsl(210, 15%, 94%);
+  --fg:            hsl(222, 20%, 12%);
+  --fg-muted:      hsl(215, 12%, 50%);
+  --border-hover:  hsl(220, 15%, 75%);
+
+  /* Match Score Colors (Light) */
+  --match-high-bg:    hsl(158, 40%, 90%);
+  --match-high:       hsl(158, 55%, 30%);
+  --match-medium-bg:  hsl(35, 45%, 88%);
+  --match-medium:     hsl(35, 65%, 30%);
+  --match-low-bg:     hsl(0, 40%, 91%);
+  --match-low:        hsl(0, 50%, 38%);
+
+  /* Pipeline Stage Colors (Light) */
+  --pipeline-discovered:  hsl(205, 60%, 40%);
+  --pipeline-interested:  hsl(180, 50%, 35%);
+  --pipeline-applied:     hsl(230, 55%, 45%);
+  --pipeline-screening:   hsl(265, 45%, 45%);
+  --pipeline-interview:   hsl(215, 60%, 40%);
+  --pipeline-offer:       hsl(145, 50%, 32%);
+  --pipeline-rejected:    hsl(220, 12%, 40%);
+
+  /* Benefit Tag Colors (Light) */
+  --tag-remote:   hsl(205, 55%, 38%);
+  --tag-salary:   hsl(145, 50%, 28%);
+  --tag-health:   hsl(15, 55%, 40%);
+  --tag-pto:      hsl(180, 45%, 32%);
+  --tag-401k:     hsl(40, 60%, 33%);
+  --tag-equity:   hsl(280, 40%, 42%);
+}
+
+/* =============================================================================
+   Dark Theme Component-Level Defaults (from visual mock)
+   ============================================================================= */
+.benefit-tag { background: hsl(0, 0%, 100%, 0.06); }
+.tag-remote { color: var(--tag-remote); background: hsl(205, 70%, 76%, 0.12); }
+.tag-health { color: var(--tag-health); background: hsl(15, 65%, 76%, 0.12); }
+.tag-pto { color: var(--tag-pto); background: hsl(180, 55%, 72%, 0.12); }
+.tag-401k { color: var(--tag-401k); background: hsl(40, 70%, 76%, 0.12); }
+.tag-equity { color: var(--tag-equity); background: hsl(280, 50%, 78%, 0.12); }
+.filter-chip.active { background: hsl(210, 65%, 75%, 0.15); border-color: var(--primary); color: var(--primary); }
+.job-list-row.selected { background: hsl(210, 65%, 75%, 0.08); border-left: 2px solid var(--primary); }
+.ph-discovered .pipeline-header { background: hsl(205, 70%, 76%, 0.12); color: var(--pipeline-discovered); }
+.ph-interested .pipeline-header { background: hsl(180, 55%, 72%, 0.12); color: var(--pipeline-interested); }
+.ph-applied .pipeline-header { background: hsl(230, 65%, 78%, 0.12); color: var(--pipeline-applied); }
+.ph-screening .pipeline-header { background: hsl(265, 55%, 78%, 0.12); color: var(--pipeline-screening); }
+.ph-interview .pipeline-header { background: hsl(215, 70%, 78%, 0.12); color: var(--pipeline-interview); }
+.ph-offer .pipeline-header { background: hsl(145, 55%, 72%, 0.12); color: var(--pipeline-offer); }
+.ph-rejected .pipeline-header { background: hsl(220, 12%, 65%, 0.12); color: var(--pipeline-rejected); }
+
+/* =============================================================================
+   Light Theme Component-Level Overrides
+   ============================================================================= */
+html.light .benefit-tag { background: hsl(0, 0%, 0%, 0.04); }
+html.light .tag-remote { background: hsl(205, 50%, 92%); color: var(--tag-remote); }
+html.light .tag-health { background: hsl(15, 50%, 92%); color: var(--tag-health); }
+html.light .tag-pto { background: hsl(180, 40%, 91%); color: var(--tag-pto); }
+html.light .tag-401k { background: hsl(40, 50%, 90%); color: var(--tag-401k); }
+html.light .tag-equity { background: hsl(280, 40%, 93%); color: var(--tag-equity); }
+html.light .job-salary { color: hsl(145, 50%, 28%); }
+html.light .briefing { background: linear-gradient(135deg, hsl(210, 20%, 95%) 0%, hsl(220, 18%, 93%) 100%); }
+html.light .source-dot.healthy { background: hsl(158, 55%, 40%); box-shadow: 0 0 6px hsl(158, 55%, 40%); }
+html.light .source-dot.warning { background: hsl(35, 60%, 45%); box-shadow: 0 0 6px hsl(35, 60%, 45%); }
+html.light .source-dot.error { background: hsl(0, 50%, 50%); box-shadow: 0 0 6px hsl(0, 50%, 50%); }
+html.light .filter-chip.active { background: hsl(210, 60%, 88%); border-color: hsl(210, 55%, 58%); color: hsl(210, 60%, 35%); }
+html.light .ph-discovered .pipeline-header { background: hsl(205, 55%, 88%); }
+html.light .ph-interested .pipeline-header { background: hsl(180, 45%, 87%); }
+html.light .ph-applied .pipeline-header { background: hsl(230, 50%, 90%); }
+html.light .ph-screening .pipeline-header { background: hsl(265, 40%, 90%); }
+html.light .ph-interview .pipeline-header { background: hsl(215, 55%, 88%); }
+html.light .ph-offer .pipeline-header { background: hsl(145, 45%, 87%); }
+html.light .ph-rejected .pipeline-header { background: hsl(220, 10%, 88%); }
+html.light .job-list-row.selected { background: hsl(210, 50%, 95%); border-left-color: hsl(210, 55%, 50%); }
+html.light .list-tag { background: hsl(0, 0%, 0%, 0.04); }
+html.light .list-tag.tag-remote { background: hsl(205, 50%, 92%); color: var(--tag-remote); }
+html.light .list-tag.tag-health { background: hsl(15, 50%, 92%); color: var(--tag-health); }
+html.light .list-tag.tag-pto { background: hsl(180, 40%, 91%); color: var(--tag-pto); }
+html.light .list-tag.tag-401k { background: hsl(40, 50%, 90%); color: var(--tag-401k); }
+html.light .list-tag.tag-equity { background: hsl(280, 40%, 93%); color: var(--tag-equity); }
+html.light .detail-tag { background: hsl(0, 0%, 0%, 0.04); }
+html.light .detail-tag.tag-remote { background: hsl(205, 50%, 92%); color: var(--tag-remote); }
+html.light .detail-tag.tag-health { background: hsl(15, 50%, 92%); color: var(--tag-health); }
+html.light .detail-tag.tag-pto { background: hsl(180, 40%, 91%); color: var(--tag-pto); }
+html.light .detail-tag.tag-401k { background: hsl(40, 50%, 90%); color: var(--tag-401k); }
+html.light .detail-tag.tag-equity { background: hsl(280, 40%, 93%); color: var(--tag-equity); }
+html.light .detail-overlay { background: var(--bg-elevated); }
+html.light .briefing-headline { color: var(--fg); }
+html.light .briefing-title { color: var(--fg-muted); }
+html.light .briefing-stat-label { color: var(--fg-muted); }
+html.light .pipeline-card { background: var(--bg-elevated); }
+html.light .source-card { background: var(--bg-elevated); }
+
+/* =============================================================================
+   Min-Width Constraint — Desktop Only
+   ============================================================================= */
+@media (max-width: 1023px) {
+  body::before {
+    content: "Recon requires a desktop browser (1024px minimum)";
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 16px;
+    z-index: 9999;
+  }
+  #main { display: none; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
