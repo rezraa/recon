@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 export const envSchema = z.object({
-  DATABASE_URL: z.string().optional(),
-  REDIS_URL: z.string().optional(),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1),
   SERPLY_API_KEY: z.string().optional(),
   REMOTEOK_API_KEY: z.string().optional(),
   JOBICY_API_KEY: z.string().optional(),
