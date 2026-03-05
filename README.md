@@ -48,7 +48,7 @@ pnpm dev
 
 ## Project Status
 
-This project is under active development. See the sprint status in `_bmad-output/implementation-artifacts/sprint-status.yaml` for current progress.
+This project is under active development.
 
 ## License
 
