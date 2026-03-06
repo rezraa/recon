@@ -27,20 +27,32 @@ This project is architected and directed using an **Agentic AI + HILT (Human-In-
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind v4, shadcn/ui, CSS variables |
-| Database | PostgreSQL via Drizzle ORM |
-| Queue | BullMQ + Redis (ioredis) |
+| Database | PostgreSQL 16 via Drizzle ORM |
+| Queue | BullMQ + Redis 7 (ioredis) |
 | Testing | Vitest, Testing Library, Playwright, MSW |
 | UI Extras | Framer Motion, Nivo Charts, dnd-kit, cmdk |
 
-## Getting Started
+<!-- Screenshots will be added after UI implementation -->
+
+<!-- Architecture diagram will be added after implementation -->
+
+## Quick Start
 
 ```bash
-# Clone and install
+# Clone the repo
 git clone https://github.com/yourusername/recon.git
 cd recon
-pnpm install
 
-# Start development
+# Start everything with Docker Compose
+docker compose up
+```
+
+The app will be available at `http://localhost:3000`.
+
+### Development (without Docker)
+
+```bash
+pnpm install
 pnpm dev
 ```
 

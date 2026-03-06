@@ -2,6 +2,7 @@
   "name": "recon",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -12,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "worker:dev": "tsx src/worker/index.ts",
-    "worker:build": "tsc -p tsconfig.worker.json && tsc-alias -p tsconfig.worker.json"
+    "worker:build": "tsc -p tsconfig.worker.json && tsc-alias -p tsconfig.worker.json",
+    "ci": "pnpm lint && pnpm tsc --noEmit && pnpm tsc --noEmit -p tsconfig.worker.json && pnpm drizzle-kit check && pnpm vitest run && pnpm next build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
