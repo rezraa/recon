@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { envSchema, getConfig } from './config'
+import { envSchema, getConfig, parseRedisConnection } from './config'
 
 describe('envSchema', () => {
   it('should require DATABASE_URL', () => {
@@ -74,5 +74,31 @@ describe('getConfig', () => {
     delete process.env.DATABASE_URL
     delete process.env.REDIS_URL
     expect(() => getConfig()).toThrow()
+  })
+})
+
+describe('parseRedisConnection', () => {
+  it('should parse host and port from redis URL', () => {
+    const result = parseRedisConnection('redis://myhost:6380')
+    expect(result).toEqual({ host: 'myhost', port: 6380 })
+  })
+
+  it('should default to port 6379 when no port specified', () => {
+    const result = parseRedisConnection('redis://myhost')
+    expect(result).toEqual({ host: 'myhost', port: 6379 })
+  })
+
+  it('should parse localhost URL', () => {
+    const result = parseRedisConnection('redis://localhost:6379')
+    expect(result).toEqual({ host: 'localhost', port: 6379 })
+  })
+
+  it('should handle redis URL with credentials', () => {
+    const result = parseRedisConnection('redis://user:pass@redis.example.com:6380')
+    expect(result).toEqual({ host: 'redis.example.com', port: 6380 })
+  })
+
+  it('should throw on invalid URL', () => {
+    expect(() => parseRedisConnection('not-a-url')).toThrow()
   })
 })
