@@ -1,6 +1,6 @@
 # Recon
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg?style=for-the-badge)](LICENSE)
 [![Contributing](https://img.shields.io/badge/Contributing-Guide-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 [![Architected by: AI + HILT](https://img.shields.io/badge/Architected_by-AI_+_HILT-blueviolet.svg?style=for-the-badge&logo=openai&logoColor=white)](#how-its-built)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
@@ -50,5 +50,5 @@ This project is under active development.
 
 ## License
 
-[GPLv3](LICENSE) — Free and open source. Derivative works must remain open source under the same license. Contributions are subject to a [CLA](CONTRIBUTING.md#contributor-license-agreement).
+[AGPL v3](LICENSE) — Free and open source. Derivative works must remain open source under the same license, including network/SaaS deployments. Contributions are subject to a [CLA](CONTRIBUTING.md#contributor-license-agreement).
 

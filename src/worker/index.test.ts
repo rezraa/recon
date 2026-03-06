@@ -1,0 +1,91 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mockOn = vi.fn()
+const mockClose = vi.fn().mockResolvedValue(undefined)
+
+// Mock bullmq with class-based constructors
+vi.mock('bullmq', () => {
+  return {
+    Worker: class MockWorker {
+      on = mockOn
+      close = mockClose
+      constructor(public name: string, public processor: unknown, public opts: unknown) {}
+    },
+    Queue: class MockQueue {
+      constructor(public name: string, public opts?: unknown) {}
+    },
+  }
+})
+
+// Mock drizzle-orm sql tagged template
+vi.mock('drizzle-orm', () => ({
+  sql: Object.assign(() => ({}), { raw: () => ({}) }),
+}))
+
+// Mock config
+vi.mock('@/lib/config', () => ({
+  getConfig: vi.fn().mockReturnValue({
+    DATABASE_URL: 'postgresql://recon:recon@localhost:5432/recon',
+    REDIS_URL: 'redis://localhost:6379',
+  }),
+  parseRedisConnection: vi.fn().mockReturnValue({ host: 'localhost', port: 6379 }),
+}))
+
+// Mock db client
+vi.mock('@/lib/db/client', () => ({
+  getDb: vi.fn().mockReturnValue({
+    execute: vi.fn().mockResolvedValue(undefined),
+  }),
+}))
+
+describe('worker/index', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  it('should export startWorker function', async () => {
+    const mod = await import('./index')
+    expect(mod.startWorker).toBeDefined()
+    expect(typeof mod.startWorker).toBe('function')
+  })
+
+  it('should start worker and return worker instance', async () => {
+    const mod = await import('./index')
+    const worker = await mod.startWorker()
+    expect(worker).toBeDefined()
+    expect(worker.on).toBeDefined()
+  })
+
+  it('should initialize with discovery-pipeline queue', async () => {
+    const mod = await import('./index')
+    const worker = await mod.startWorker() as unknown as { name: string }
+    expect(worker.name).toBe('discovery-pipeline')
+  })
+
+  it('should register event listeners on worker', async () => {
+    const mod = await import('./index')
+    await mod.startWorker()
+
+    expect(mockOn).toHaveBeenCalledWith('ready', expect.any(Function))
+    expect(mockOn).toHaveBeenCalledWith('failed', expect.any(Function))
+  })
+
+  it('should verify DB connectivity on startup', async () => {
+    const { getDb } = await import('@/lib/db/client')
+    const mod = await import('./index')
+    await mod.startWorker()
+
+    expect(getDb).toHaveBeenCalled()
+    const db = (getDb as ReturnType<typeof vi.fn>).mock.results[0].value
+    expect(db.execute).toHaveBeenCalled()
+  })
+
+  it('should use parseRedisConnection for Redis config', async () => {
+    const { parseRedisConnection } = await import('@/lib/config')
+    const mod = await import('./index')
+    await mod.startWorker()
+
+    expect(parseRedisConnection).toHaveBeenCalledWith('redis://localhost:6379')
+  })
+})

@@ -15,3 +15,11 @@ export type EnvConfig = z.infer<typeof envSchema>
 export function getConfig(): EnvConfig {
   return envSchema.parse(process.env)
 }
+
+export function parseRedisConnection(redisUrl: string): { host: string; port: number } {
+  const url = new URL(redisUrl)
+  return {
+    host: url.hostname,
+    port: Number(url.port) || 6379,
+  }
+}
