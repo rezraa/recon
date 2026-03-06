@@ -20,8 +20,6 @@ This project is architected and directed using an **Agentic AI + HILT (Human-In-
 - Every story goes through automated validation and code review (using a different LLM than the one that implemented it)
 - The result is a transparent, reproducible, and professional development process
 
-This repo doubles as a **learning resource** for developers exploring AI-assisted development workflows.
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -52,12 +50,5 @@ This project is under active development.
 
 ## License
 
-[GPLv3](LICENSE) — This software is free and open source. You can use, modify, and distribute it, but derivative works must also be open source under the same license.
+[GPLv3](LICENSE) — Free and open source. Derivative works must remain open source under the same license. Contributions are subject to a [CLA](CONTRIBUTING.md#contributor-license-agreement).
 
-## Contributing
-
-Contributions are welcome! Please open an issue first to discuss what you'd like to change. A `CONTRIBUTING.md` with detailed guidelines is coming soon.
-
----
-
-If this architecture or the AI-assisted workflow helps your own projects, give it a :star:!
