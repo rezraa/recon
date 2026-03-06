@@ -24,24 +24,24 @@ describe('worker/queues', () => {
     vi.resetModules()
   })
 
-  it('should export createDiscoveryQueue function', async () => {
+  it('[P2] should export createDiscoveryQueue function', async () => {
     const mod = await import('./queues')
     expect(mod.createDiscoveryQueue).toBeDefined()
     expect(typeof mod.createDiscoveryQueue).toBe('function')
   })
 
-  it('should create queue with kebab-case name "discovery-pipeline"', async () => {
+  it('[P1] should create queue with kebab-case name "discovery-pipeline"', async () => {
     const mod = await import('./queues')
     const queue = mod.createDiscoveryQueue() as unknown as { name: string }
     expect(queue.name).toBe('discovery-pipeline')
   })
 
-  it('should use named exports only (no default export)', async () => {
+  it('[P2] should use named exports only (no default export)', async () => {
     const mod = await import('./queues')
     expect(mod).not.toHaveProperty('default')
   })
 
-  it('should use parseRedisConnection for connection config', async () => {
+  it('[P1] should use parseRedisConnection for connection config', async () => {
     const { parseRedisConnection } = await import('@/lib/config')
     const mod = await import('./queues')
     mod.createDiscoveryQueue()
@@ -51,7 +51,7 @@ describe('worker/queues', () => {
 })
 
 describe('worker import boundary', () => {
-  it('should only import from @/lib/ (not @/app/ or @/components/)', async () => {
+  it('[P2] should only import from @/lib/ (not @/app/ or @/components/)', async () => {
     const fs = await import('fs')
     const path = await import('path')
 

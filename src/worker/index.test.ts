@@ -44,26 +44,26 @@ describe('worker/index', () => {
     vi.resetModules()
   })
 
-  it('should export startWorker function', async () => {
+  it('[P2] should export startWorker function', async () => {
     const mod = await import('./index')
     expect(mod.startWorker).toBeDefined()
     expect(typeof mod.startWorker).toBe('function')
   })
 
-  it('should start worker and return worker instance', async () => {
+  it('[P1] should start worker and return worker instance', async () => {
     const mod = await import('./index')
     const worker = await mod.startWorker()
     expect(worker).toBeDefined()
     expect(worker.on).toBeDefined()
   })
 
-  it('should initialize with discovery-pipeline queue', async () => {
+  it('[P1] should initialize with discovery-pipeline queue', async () => {
     const mod = await import('./index')
     const worker = await mod.startWorker() as unknown as { name: string }
     expect(worker.name).toBe('discovery-pipeline')
   })
 
-  it('should register event listeners on worker', async () => {
+  it('[P2] should register event listeners on worker', async () => {
     const mod = await import('./index')
     await mod.startWorker()
 
@@ -71,7 +71,7 @@ describe('worker/index', () => {
     expect(mockOn).toHaveBeenCalledWith('failed', expect.any(Function))
   })
 
-  it('should verify DB connectivity on startup', async () => {
+  it('[P1] should verify DB connectivity on startup', async () => {
     const { getDb } = await import('@/lib/db/client')
     const mod = await import('./index')
     await mod.startWorker()
@@ -81,7 +81,7 @@ describe('worker/index', () => {
     expect(db.execute).toHaveBeenCalled()
   })
 
-  it('should use parseRedisConnection for Redis config', async () => {
+  it('[P1] should use parseRedisConnection for Redis config', async () => {
     const { parseRedisConnection } = await import('@/lib/config')
     const mod = await import('./index')
     await mod.startWorker()

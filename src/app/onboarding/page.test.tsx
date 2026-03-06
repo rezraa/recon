@@ -42,19 +42,19 @@ beforeEach(() => {
 })
 
 describe('OnboardingPage', () => {
-  it('should render wizard when no resume exists', () => {
+  it('[P1] should render wizard when no resume exists', () => {
     mockUseResumeRedirect.mockReturnValue({ data: null, isLoading: false })
     render(<OnboardingPage />)
-    expect(screen.getByText('Upload your resume PDF to get started')).toBeDefined()
+    expect(screen.getByText('Upload your resume PDF to get started')).toBeInTheDocument()
   })
 
-  it('should show loading skeleton while checking resume', () => {
+  it('[P1] should show loading skeleton while checking resume', () => {
     mockUseResumeRedirect.mockReturnValue({ data: null, isLoading: true })
     render(<OnboardingPage />)
     expect(screen.queryByText('Upload your resume PDF to get started')).toBeNull()
   })
 
-  it('should call useResumeRedirect with redirect to / when resume exists', () => {
+  it('[P1] should call useResumeRedirect with redirect to / when resume exists', () => {
     mockUseResumeRedirect.mockReturnValue({ data: null, isLoading: false })
     render(<OnboardingPage />)
     expect(mockUseResumeRedirect).toHaveBeenCalledWith({

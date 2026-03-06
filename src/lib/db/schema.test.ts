@@ -20,7 +20,7 @@ import {
 } from './schema'
 
 describe('jobsTable', () => {
-  it('should export jobsTable with expected columns', () => {
+  it('[P1] should export jobsTable with expected columns', () => {
     const columns = getTableColumns(jobsTable)
     const columnNames = Object.keys(columns)
 
@@ -50,24 +50,24 @@ describe('jobsTable', () => {
     expect(columnNames).toContain('searchVector')
   })
 
-  it('should have uuid id column', () => {
+  it('[P1] should have uuid id column', () => {
     const columns = getTableColumns(jobsTable)
     expect(columns.id.dataType).toBe('string')
   })
 
-  it('should have isDismissed default to false', () => {
+  it('[P1] should have isDismissed default to false', () => {
     const columns = getTableColumns(jobsTable)
     expect(columns.isDismissed.hasDefault).toBe(true)
     expect(columns.isDismissed.default).toBe(false)
   })
 
-  it('should have pipelineStage default to discovered', () => {
+  it('[P1] should have pipelineStage default to discovered', () => {
     const columns = getTableColumns(jobsTable)
     expect(columns.pipelineStage.hasDefault).toBe(true)
     expect(columns.pipelineStage.default).toBe('discovered')
   })
 
-  it('should have externalId and sourceName as notNull', () => {
+  it('[P0] should have externalId and sourceName as notNull', () => {
     const columns = getTableColumns(jobsTable)
     expect(columns.externalId.notNull).toBe(true)
     expect(columns.sourceName.notNull).toBe(true)
@@ -75,7 +75,7 @@ describe('jobsTable', () => {
 })
 
 describe('sourcesTable', () => {
-  it('should export sourcesTable with expected columns', () => {
+  it('[P1] should export sourcesTable with expected columns', () => {
     const columns = getTableColumns(sourcesTable)
     const columnNames = Object.keys(columns)
 
@@ -92,19 +92,19 @@ describe('sourcesTable', () => {
     expect(columnNames).toContain('updatedAt')
   })
 
-  it('should have isEnabled default to true', () => {
+  it('[P1] should have isEnabled default to true', () => {
     const columns = getTableColumns(sourcesTable)
     expect(columns.isEnabled.hasDefault).toBe(true)
   })
 
-  it('should have listingsCount default to 0', () => {
+  it('[P1] should have listingsCount default to 0', () => {
     const columns = getTableColumns(sourcesTable)
     expect(columns.listingsCount.hasDefault).toBe(true)
   })
 })
 
 describe('pipelineRunsTable', () => {
-  it('should export pipelineRunsTable with expected columns', () => {
+  it('[P1] should export pipelineRunsTable with expected columns', () => {
     const columns = getTableColumns(pipelineRunsTable)
     const columnNames = Object.keys(columns)
 
@@ -120,7 +120,7 @@ describe('pipelineRunsTable', () => {
     expect(columnNames).toContain('errors')
   })
 
-  it('should have integer columns default to 0', () => {
+  it('[P1] should have integer columns default to 0', () => {
     const columns = getTableColumns(pipelineRunsTable)
     expect(columns.sourcesAttempted.hasDefault).toBe(true)
     expect(columns.sourcesSucceeded.hasDefault).toBe(true)
@@ -132,7 +132,7 @@ describe('pipelineRunsTable', () => {
 })
 
 describe('resumesTable', () => {
-  it('should export resumesTable with expected columns', () => {
+  it('[P1] should export resumesTable with expected columns', () => {
     const columns = getTableColumns(resumesTable)
     const columnNames = Object.keys(columns)
 
@@ -147,7 +147,7 @@ describe('resumesTable', () => {
 })
 
 describe('preferencesTable', () => {
-  it('should export preferencesTable with expected columns', () => {
+  it('[P1] should export preferencesTable with expected columns', () => {
     const columns = getTableColumns(preferencesTable)
     const columnNames = Object.keys(columns)
 
@@ -163,7 +163,7 @@ describe('preferencesTable', () => {
 })
 
 describe('drizzle-zod schemas', () => {
-  it('should export insert schemas for all tables', () => {
+  it('[P2] should export insert schemas for all tables', () => {
     expect(insertJobSchema).toBeDefined()
     expect(insertSourceSchema).toBeDefined()
     expect(insertPipelineRunSchema).toBeDefined()
@@ -171,7 +171,7 @@ describe('drizzle-zod schemas', () => {
     expect(insertPreferencesSchema).toBeDefined()
   })
 
-  it('should export select schemas for all tables', () => {
+  it('[P2] should export select schemas for all tables', () => {
     expect(selectJobSchema).toBeDefined()
     expect(selectSourceSchema).toBeDefined()
     expect(selectPipelineRunSchema).toBeDefined()
@@ -179,7 +179,7 @@ describe('drizzle-zod schemas', () => {
     expect(selectPreferencesSchema).toBeDefined()
   })
 
-  it('should validate valid job insert data', () => {
+  it('[P1] should validate valid job insert data', () => {
     const result = insertJobSchema.safeParse({
       externalId: 'ext-123',
       sourceName: 'linkedin',
@@ -189,7 +189,7 @@ describe('drizzle-zod schemas', () => {
     expect(result.success).toBe(true)
   })
 
-  it('should validate valid source insert data', () => {
+  it('[P1] should validate valid source insert data', () => {
     const result = insertSourceSchema.safeParse({
       name: 'linkedin',
       displayName: 'LinkedIn',
@@ -199,7 +199,7 @@ describe('drizzle-zod schemas', () => {
     expect(result.success).toBe(true)
   })
 
-  it('should reject job insert missing required externalId', () => {
+  it('[P0] should reject job insert missing required externalId', () => {
     const result = insertJobSchema.safeParse({
       sourceName: 'linkedin',
       title: 'Engineer',
@@ -207,7 +207,7 @@ describe('drizzle-zod schemas', () => {
     expect(result.success).toBe(false)
   })
 
-  it('should reject job insert missing required sourceName', () => {
+  it('[P0] should reject job insert missing required sourceName', () => {
     const result = insertJobSchema.safeParse({
       externalId: 'ext-123',
       title: 'Engineer',
@@ -215,7 +215,7 @@ describe('drizzle-zod schemas', () => {
     expect(result.success).toBe(false)
   })
 
-  it('should reject source insert missing required name', () => {
+  it('[P0] should reject source insert missing required name', () => {
     const result = insertSourceSchema.safeParse({
       displayName: 'LinkedIn',
       type: 'key_required',

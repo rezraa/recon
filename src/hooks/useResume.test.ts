@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 describe('useResume', () => {
-  it('should return data when resume exists', async () => {
+  it('[P0] should return data when resume exists', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: { id: '1', fileName: 'resume.pdf' } }), { status: 200 }),
     )
@@ -49,7 +49,7 @@ describe('useResume', () => {
     expect(result.current.error).toBeUndefined()
   })
 
-  it('should return null when resume not found (404)', async () => {
+  it('[P0] should return null when resume not found (404)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: { code: 404 } }), { status: 404 }),
     )
@@ -63,7 +63,7 @@ describe('useResume', () => {
     expect(result.current.error).toBeUndefined()
   })
 
-  it('should set error on non-404 failure', async () => {
+  it('[P1] should set error on non-404 failure', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('Server Error', { status: 500 }),
     )
@@ -75,7 +75,7 @@ describe('useResume', () => {
     })
   })
 
-  it('should be loading initially', () => {
+  it('[P1] should be loading initially', () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {})) // never resolves
 
     const { result } = renderHook(() => useResume(), { wrapper: createWrapper() })
@@ -85,7 +85,7 @@ describe('useResume', () => {
 })
 
 describe('useResumeRedirect', () => {
-  it('should redirect when resume exists and when=exists', async () => {
+  it('[P0] should redirect when resume exists and when=exists', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: { id: '1' } }), { status: 200 }),
     )
@@ -100,7 +100,7 @@ describe('useResumeRedirect', () => {
     })
   })
 
-  it('should redirect when resume missing and when=missing', async () => {
+  it('[P0] should redirect when resume missing and when=missing', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: { code: 404 } }), { status: 404 }),
     )
@@ -115,7 +115,7 @@ describe('useResumeRedirect', () => {
     })
   })
 
-  it('should NOT redirect when resume exists and when=missing', async () => {
+  it('[P0] should NOT redirect when resume exists and when=missing', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: { id: '1' } }), { status: 200 }),
     )
@@ -131,7 +131,7 @@ describe('useResumeRedirect', () => {
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('should NOT redirect while loading', () => {
+  it('[P1] should NOT redirect while loading', () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}))
 
     renderHook(

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, SourceError } from './errors'
 
 describe('SourceError', () => {
-  it('should create error with required fields', () => {
+  it('[P1] should create error with required fields', () => {
     const err = new SourceError({
       sourceName: 'RemoteOK',
       errorType: 'rate_limit',
@@ -16,7 +16,7 @@ describe('SourceError', () => {
     expect(err.retryAt).toBeUndefined()
   })
 
-  it('should create error with optional retryAt', () => {
+  it('[P1] should create error with optional retryAt', () => {
     const retryAt = new Date('2026-01-01')
     const err = new SourceError({
       sourceName: 'Serply',
@@ -27,7 +27,7 @@ describe('SourceError', () => {
     expect(err.retryAt).toEqual(retryAt)
   })
 
-  it('should be an instance of Error', () => {
+  it('[P1] should be an instance of Error', () => {
     const err = new SourceError({
       sourceName: 'test',
       errorType: 'test',
@@ -38,7 +38,7 @@ describe('SourceError', () => {
 })
 
 describe('ApiError', () => {
-  it('should create error with required fields', () => {
+  it('[P1] should create error with required fields', () => {
     const err = new ApiError({
       code: 404,
       message: 'Not found',
@@ -49,7 +49,7 @@ describe('ApiError', () => {
     expect(err.details).toBeUndefined()
   })
 
-  it('should create error with optional details', () => {
+  it('[P1] should create error with optional details', () => {
     const err = new ApiError({
       code: 422,
       message: 'Validation failed',
@@ -58,7 +58,7 @@ describe('ApiError', () => {
     expect(err.details).toEqual({ field: 'email', reason: 'invalid format' })
   })
 
-  it('should be an instance of Error', () => {
+  it('[P1] should be an instance of Error', () => {
     const err = new ApiError({ code: 500, message: 'test' })
     expect(err).toBeInstanceOf(Error)
   })

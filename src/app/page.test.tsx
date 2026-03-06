@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockReplace = vi.fn()
 
@@ -32,52 +32,56 @@ beforeEach(() => {
   })
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('Root Page', () => {
-  it('should render welcome message when resume exists', () => {
+  it('[P1] should render welcome message when resume exists', () => {
     render(<Page />)
-    expect(screen.getByText('Recon')).toBeDefined()
-    expect(screen.getByText('Welcome back! Run discovery to find jobs.')).toBeDefined()
+    expect(screen.getByText('Recon')).toBeInTheDocument()
+    expect(screen.getByText('Welcome back! Run discovery to find jobs.')).toBeInTheDocument()
   })
 
-  it('should render Run Discovery Now button', () => {
+  it('[P1] should render Run Discovery Now button', () => {
     render(<Page />)
-    expect(screen.getByText('Run Discovery Now')).toBeDefined()
+    expect(screen.getByText('Run Discovery Now')).toBeInTheDocument()
   })
 
-  it('should show loading skeleton while checking resume', () => {
+  it('[P1] should show loading skeleton while checking resume', () => {
     mockUseResumeRedirect.mockReturnValue({ data: null, isLoading: true })
     render(<Page />)
     expect(screen.queryByText('Recon')).toBeNull()
   })
 
-  it('should disable button and show Starting... while discovery runs', async () => {
+  it('[P1] should disable button and show Starting... while discovery runs', async () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}))
     render(<Page />)
     const button = screen.getByText('Run Discovery Now')
     fireEvent.click(button)
     await waitFor(() => {
-      expect(screen.getByText('Starting...')).toBeDefined()
+      expect(screen.getByText('Starting...')).toBeInTheDocument()
     })
     expect((screen.getByText('Starting...') as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('should show error message when discovery API fails', async () => {
+  it('[P1] should show error message when discovery API fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('Internal Server Error', { status: 500 }),
     )
     render(<Page />)
     fireEvent.click(screen.getByText('Run Discovery Now'))
     await waitFor(() => {
-      expect(screen.getByText('Failed to start discovery. Please try again.')).toBeDefined()
+      expect(screen.getByText('Failed to start discovery. Please try again.')).toBeInTheDocument()
     })
   })
 
-  it('should show error message on network failure', async () => {
+  it('[P1] should show error message on network failure', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
     render(<Page />)
     fireEvent.click(screen.getByText('Run Discovery Now'))
     await waitFor(() => {
-      expect(screen.getByText('Network error. Please check your connection and try again.')).toBeDefined()
+      expect(screen.getByText('Network error. Please check your connection and try again.')).toBeInTheDocument()
     })
   })
 })
