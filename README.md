@@ -1,5 +1,6 @@
 # Recon
 
+[![CI](https://github.com/rezraa/recon/actions/workflows/ci.yml/badge.svg)](https://github.com/rezraa/recon/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg?style=for-the-badge)](LICENSE)
 [![Contributing](https://img.shields.io/badge/Contributing-Guide-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 [![Architected by: AI + HILT](https://img.shields.io/badge/Architected_by-AI_+_HILT-blueviolet.svg?style=for-the-badge&logo=openai&logoColor=white)](#how-its-built)
