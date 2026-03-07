@@ -12,7 +12,7 @@ let mockFetch: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   mockFetch = vi.fn()
-  vi.spyOn(globalThis, 'fetch').mockImplementation(mockFetch)
+  vi.spyOn(globalThis, 'fetch').mockImplementation(mockFetch as typeof fetch)
 })
 
 afterEach(() => {

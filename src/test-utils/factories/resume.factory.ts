@@ -1,4 +1,4 @@
-import type { ParsedResume, ExperienceEntry } from '@/lib/pipeline/resumeTypes'
+import type { ExperienceEntry, ParsedResume } from '@/lib/pipeline/resumeTypes'
 
 export interface ResumeRecord {
   id: string

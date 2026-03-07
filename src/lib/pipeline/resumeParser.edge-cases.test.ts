@@ -1,6 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-
-import type { ParsedResume } from './resumeTypes'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock pdf-parse to control text extraction
 vi.mock('pdf-parse', () => ({
@@ -8,6 +6,7 @@ vi.mock('pdf-parse', () => ({
 }))
 
 import pdfParse from 'pdf-parse'
+
 import { parseResume } from './resumeParser'
 
 const mockPdfParse = vi.mocked(pdfParse)
@@ -25,7 +24,7 @@ function setupPdfText(text: string) {
     info: {},
     metadata: null,
     version: '1.0',
-  } as any)
+  } as unknown as Awaited<ReturnType<typeof pdfParse>>)
 }
 
 describe('resumeParser edge cases', () => {

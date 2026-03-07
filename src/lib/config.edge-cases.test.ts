@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { envSchema, getConfig, parseRedisConnection } from './config'
 
@@ -84,7 +84,7 @@ describe('envSchema edge cases', () => {
     // Zod strips unknown keys by default
     expect(result.success).toBe(true)
     if (result.success) {
-      expect((result.data as any).UNKNOWN_FIELD).toBeUndefined()
+      expect('UNKNOWN_FIELD' in result.data).toBe(false)
     }
   })
 })

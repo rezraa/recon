@@ -52,10 +52,10 @@ describe('POST /api/resume — file upload edge cases', () => {
     })
 
     const response = await POST(request)
-    const body = await response.json()
+    const json = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body.data.id).toBe('resume-1')
+    expect(json.data.id).toBe('resume-1')
     expect(mockParseResume).toHaveBeenCalled()
     expect(mockUpsertResume).toHaveBeenCalled()
   })
@@ -71,10 +71,10 @@ describe('POST /api/resume — file upload edge cases', () => {
     })
 
     const response = await POST(request)
-    const body = await response.json()
+    const json = await response.json()
 
     expect(response.status).toBe(400)
-    expect(body.error.message).toBe('Please upload a PDF file')
+    expect(json.error.message).toBe('Please upload a PDF file')
     expect(mockParseResume).not.toHaveBeenCalled()
   })
 
@@ -95,9 +95,10 @@ describe('POST /api/resume — file upload edge cases', () => {
     })
 
     const response = await POST(request)
-    const body = await response.json()
+    const json = await response.json()
 
     expect(response.status).toBe(200)
+    expect(json.data).toBeDefined()
     // formData.get('file') returns the first entry
     expect(mockUpsertResume).toHaveBeenCalledWith(
       expect.objectContaining({ fileName: 'first.pdf' }),
@@ -119,11 +120,11 @@ describe('POST /api/resume — file upload edge cases', () => {
     })
 
     const response = await POST(request)
-    const body = await response.json()
+    const errorJson = await response.json()
 
     expect(response.status).toBe(500)
-    expect(body.error.code).toBe(500)
-    expect(body.error.message).toBe('Internal server error')
+    expect(errorJson.error.code).toBe(500)
+    expect(errorJson.error.message).toBe('Internal server error')
   })
 
   it('[P2] should handle concurrent POST requests independently', async () => {

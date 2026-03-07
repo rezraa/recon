@@ -22,16 +22,9 @@ vi.mock('@/hooks/useResume', () => ({
   useResumeRedirect: (...args: unknown[]) => mockUseResumeRedirect(...args),
 }))
 
-vi.mock('framer-motion', () => {
-  return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-    motion: {
-      div: React.forwardRef(function MotionDiv(props: Record<string, unknown>, ref: React.Ref<HTMLDivElement>) {
-        const { children, variants: _v, initial: _i, animate: _a, exit: _e, transition: _t, custom: _c, ...rest } = props
-        return React.createElement('div', { ...rest, ref }, children as React.ReactNode)
-      }),
-    },
-  }
+vi.mock('framer-motion', async () => {
+  const { framerMotionMock } = await import('@/test-utils/mocks/framer-motion')
+  return framerMotionMock
 })
 
 import OnboardingPage from './page'
