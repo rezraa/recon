@@ -1,58 +1,35 @@
-export interface JobRecord {
-  id: string
-  externalId: string
-  sourceName: string
-  title: string | null
-  company: string | null
-  description: string | null
-  salaryMin: number | null
-  salaryMax: number | null
-  location: string | null
-  isRemote: boolean | null
-  url: string | null
-  benefits: unknown | null
-  rawData: unknown | null
-  matchScore: number | null
-  matchBreakdown: unknown | null
-  pipelineStage: string | null
-  discoveredAt: Date | null
-  reviewedAt: Date | null
-  appliedAt: Date | null
-  stageChangedAt: Date | null
-  isDismissed: boolean | null
-  createdAt: Date | null
-  updatedAt: Date | null
-  searchVector: string | null
-}
+import { faker } from '@faker-js/faker'
+import type { z } from 'zod'
 
-let jobCounter = 0
+import type { selectJobSchema } from '@/lib/db/schema'
+
+export type JobRecord = z.infer<typeof selectJobSchema>
 
 export function createJob(overrides?: Partial<JobRecord>): JobRecord {
-  jobCounter++
   return {
     id: crypto.randomUUID(),
-    externalId: `ext-${Date.now()}-${jobCounter}`,
-    sourceName: 'test-source',
-    title: 'Software Engineer',
-    company: 'Test Corp',
-    description: 'Build and maintain software systems.',
-    salaryMin: 100000,
-    salaryMax: 150000,
-    location: 'Remote',
-    isRemote: true,
-    url: `https://example.com/jobs/${jobCounter}`,
+    externalId: faker.string.nanoid(),
+    sourceName: faker.helpers.arrayElement(['linkedin', 'indeed', 'remoteok', 'jobicy']),
+    title: faker.person.jobTitle(),
+    company: faker.company.name(),
+    description: faker.lorem.paragraph(),
+    salaryMin: faker.number.int({ min: 60000, max: 120000 }),
+    salaryMax: faker.number.int({ min: 120000, max: 250000 }),
+    location: faker.location.city(),
+    isRemote: faker.datatype.boolean(),
+    url: faker.internet.url(),
     benefits: null,
     rawData: null,
     matchScore: null,
     matchBreakdown: null,
     pipelineStage: 'discovered',
-    discoveredAt: new Date(),
+    discoveredAt: faker.date.recent(),
     reviewedAt: null,
     appliedAt: null,
     stageChangedAt: null,
     isDismissed: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: faker.date.recent(),
+    updatedAt: faker.date.recent(),
     searchVector: null,
     ...overrides,
   }

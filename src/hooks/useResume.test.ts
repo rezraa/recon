@@ -2,22 +2,32 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { SWRConfig } from 'swr'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockReplace = vi.fn()
+const { mockReplace, nextNavigationMock } = vi.hoisted(() => {
+  const mockReplace = vi.fn()
+  return {
+    mockReplace,
+    nextNavigationMock: {
+      useRouter: () => ({
+        replace: mockReplace,
+        push: vi.fn(),
+        back: vi.fn(),
+        forward: vi.fn(),
+        refresh: vi.fn(),
+        prefetch: vi.fn(),
+      }),
+    },
+  }
+})
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-    push: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    refresh: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-}))
+vi.mock('next/navigation', () => nextNavigationMock)
 
 import { useResume, useResumeRedirect } from './useResume'
+
+beforeEach(() => {
+  mockReplace.mockClear()
+})
 
 function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -28,11 +38,6 @@ function createWrapper() {
     )
   }
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-  mockReplace.mockClear()
-})
 
 describe('useResume', () => {
   it('[P0] should return data when resume exists', async () => {

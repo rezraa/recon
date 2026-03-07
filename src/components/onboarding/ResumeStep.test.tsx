@@ -23,17 +23,19 @@ import { ResumeStep } from './ResumeStep'
 
 const mockUseResumeUpload = vi.mocked(useResumeUpload)
 
+const defaultHookValue = {
+  upload: mockUpload,
+  isUploading: false,
+  parsedData: null,
+  error: null,
+  resumeId: null,
+  state: 'idle' as const,
+  reset: mockReset,
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mockUseResumeUpload.mockReturnValue({
-    upload: mockUpload,
-    isUploading: false,
-    parsedData: null,
-    error: null,
-    resumeId: null,
-    state: 'idle',
-    reset: mockReset,
-  })
+  mockUseResumeUpload.mockReturnValue(defaultHookValue)
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
 })
 
@@ -95,13 +97,9 @@ describe('ResumeStep', () => {
   describe('loading state', () => {
     it('[P1] should show skeleton while uploading', () => {
       mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
+        ...defaultHookValue,
         isUploading: true,
-        parsedData: null,
-        error: null,
-        resumeId: null,
         state: 'uploading',
-        reset: mockReset,
       })
 
       const onValidChange = vi.fn()
@@ -113,13 +111,9 @@ describe('ResumeStep', () => {
   describe('error display', () => {
     it('[P1] should display upload error from hook', () => {
       mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: null,
+        ...defaultHookValue,
         error: 'Server error occurred',
-        resumeId: null,
         state: 'error',
-        reset: mockReset,
       })
 
       const onValidChange = vi.fn()
@@ -137,17 +131,18 @@ describe('ResumeStep', () => {
       jobTitles: ['Senior Engineer'],
     }
 
-    it('[P1] should display skills as badges when parsed data is available', () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
+    const successHookValue = {
+      ...defaultHookValue,
+      parsedData: mockParsedData,
+      resumeId: 'r-1',
+      state: 'success' as const,
+    }
 
+    beforeEach(() => {
+      mockUseResumeUpload.mockReturnValue(successHookValue)
+    })
+
+    it('[P1] should display skills as badges when parsed data is available', () => {
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
 
@@ -157,32 +152,12 @@ describe('ResumeStep', () => {
     })
 
     it('[P1] should call onValidChange with true when parsed data exists', () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
-
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
       expect(onValidChange).toHaveBeenCalledWith(true)
     })
 
     it('[P1] should display experience entries', () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
-
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
 
@@ -192,32 +167,12 @@ describe('ResumeStep', () => {
     })
 
     it('[P1] should display job titles as badges', () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
-
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
       expect(screen.getByText('Senior Engineer')).toBeDefined()
     })
 
     it('[P1] should remove skill when x button is clicked', async () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
-
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
 
@@ -230,16 +185,6 @@ describe('ResumeStep', () => {
     })
 
     it('[P1] should add skill when typing and pressing Enter', async () => {
-      mockUseResumeUpload.mockReturnValue({
-        upload: mockUpload,
-        isUploading: false,
-        parsedData: mockParsedData,
-        error: null,
-        resumeId: 'r-1',
-        state: 'success',
-        reset: mockReset,
-      })
-
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
 

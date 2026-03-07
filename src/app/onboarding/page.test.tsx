@@ -3,18 +3,24 @@ import { render, screen } from '@testing-library/react'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockReplace = vi.fn()
+const { mockReplace, nextNavigationMock } = vi.hoisted(() => {
+  const mockReplace = vi.fn()
+  return {
+    mockReplace,
+    nextNavigationMock: {
+      useRouter: () => ({
+        replace: mockReplace,
+        push: vi.fn(),
+        back: vi.fn(),
+        forward: vi.fn(),
+        refresh: vi.fn(),
+        prefetch: vi.fn(),
+      }),
+    },
+  }
+})
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-    push: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    refresh: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-}))
+vi.mock('next/navigation', () => nextNavigationMock)
 
 const mockUseResumeRedirect = vi.fn()
 

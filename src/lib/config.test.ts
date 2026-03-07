@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { envSchema, getConfig, parseRedisConnection } from './config'
 
@@ -56,10 +56,6 @@ describe('getConfig', () => {
   beforeEach(() => {
     vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/recon')
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379')
-  })
-
-  afterEach(() => {
-    vi.unstubAllEnvs()
   })
 
   it('[P1] should return parsed config from process.env', () => {

@@ -32,10 +32,8 @@ describe('resumeParser edge cases', () => {
     vi.clearAllMocks()
   })
 
-  // ── P0: Skills with very long strings ──────────────────────────────────────
-
   describe('skills length filtering', () => {
-    it('filters out skills longer than 60 characters', async () => {
+    it('[P1] filters out skills longer than 60 characters', async () => {
       const longSkill = 'A'.repeat(61)
       const normalSkill = 'TypeScript'
       setupPdfText(`SKILLS\n${normalSkill}, ${longSkill}`)
@@ -46,7 +44,7 @@ describe('resumeParser edge cases', () => {
       expect(result.skills).not.toContain(longSkill)
     })
 
-    it('keeps skills exactly 59 characters long', async () => {
+    it('[P2] keeps skills exactly 59 characters long', async () => {
       const skill59 = 'B'.repeat(59)
       setupPdfText(`SKILLS\n${skill59}`)
 
@@ -56,10 +54,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P0: Experience with em-dash date separator ─────────────────────────────
-
   describe('em-dash date separator', () => {
-    it('parses date range with em-dash (\u2014)', async () => {
+    it('[P1] parses date range with em-dash (\u2014)', async () => {
       setupPdfText(
         'EXPERIENCE\n\nSoftware Engineer at Google\n2020\u20142023',
       )
@@ -77,10 +73,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P0: Experience with "current" (lowercase) as end date ──────────────────
-
   describe('lowercase "current" end date', () => {
-    it('parses "current" as end date', async () => {
+    it('[P1] parses "current" as end date', async () => {
       setupPdfText(
         'EXPERIENCE\n\nSenior Dev at Acme\n2021 - current',
       )
@@ -92,7 +86,7 @@ describe('resumeParser edge cases', () => {
       expect(result.experience[0].years).toBe(currentYear - 2021)
     })
 
-    it('parses "Current" (capitalized) as end date', async () => {
+    it('[P1] parses "Current" (capitalized) as end date', async () => {
       setupPdfText(
         'EXPERIENCE\n\nDev at Corp\n2019 - Current',
       )
@@ -105,10 +99,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P0: Section header with colon ──────────────────────────────────────────
-
   describe('section header with colon', () => {
-    it('recognizes "SKILLS:" as skills section', async () => {
+    it('[P1] recognizes "SKILLS:" as skills section', async () => {
       setupPdfText('SKILLS:\nTypeScript, React, Node.js')
 
       const result = await parseResume(bufferFrom(''))
@@ -118,7 +110,7 @@ describe('resumeParser edge cases', () => {
       )
     })
 
-    it('recognizes "EXPERIENCE:" as experience section', async () => {
+    it('[P1] recognizes "EXPERIENCE:" as experience section', async () => {
       setupPdfText(
         'EXPERIENCE:\n\nEngineer at StartupCo\n2020 - 2023',
       )
@@ -130,10 +122,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P0: Section header with dash ──────────────────────────────────────────
-
   describe('section header with dash', () => {
-    it('recognizes "SKILLS - Technical" as skills section', async () => {
+    it('[P1] recognizes "SKILLS - Technical" as skills section', async () => {
       setupPdfText('SKILLS - Technical\nPython, Java, Go')
 
       const result = await parseResume(bufferFrom(''))
@@ -144,10 +134,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P1: Mixed delimiters in skills ────────────────────────────────────────
-
   describe('mixed delimiters in skills section', () => {
-    it('parses skills with commas AND bullets in same section', async () => {
+    it('[P2] parses skills with commas AND bullets in same section', async () => {
       setupPdfText(
         'SKILLS\n\u2022 TypeScript, JavaScript\n\u2022 React, Vue\nPython | Go',
       )
@@ -167,10 +155,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P1: Experience with @ symbol ──────────────────────────────────────────
-
   describe('experience with @ symbol', () => {
-    it('parses "Engineer @ Google" pattern', async () => {
+    it('[P1] parses "Engineer @ Google" pattern', async () => {
       setupPdfText(
         'EXPERIENCE\n\nSoftware Engineer @ Google\n2020 - 2023',
       )
@@ -188,10 +174,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P1: Multiple skills sections ──────────────────────────────────────────
-
   describe('multiple skills sections', () => {
-    it('merges SKILLS and TECHNICAL SKILLS sections', async () => {
+    it('[P1] merges SKILLS and TECHNICAL SKILLS sections', async () => {
       setupPdfText(
         'SKILLS\nTypeScript, React\n\nTECHNICAL SKILLS\nDocker, Kubernetes',
       )
@@ -204,10 +188,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P1: Job titles from summary section ───────────────────────────────────
-
   describe('job titles from summary', () => {
-    it('extracts title from "Experienced Senior Software Engineer..."', async () => {
+    it('[P1] extracts title from "Experienced Senior Software Engineer..."', async () => {
       setupPdfText(
         'SUMMARY\nExperienced Senior Software Engineer with 10 years of expertise.',
       )
@@ -220,7 +202,7 @@ describe('resumeParser edge cases', () => {
       ).toBe(true)
     })
 
-    it('extracts title from "Lead Data Analyst" in profile', async () => {
+    it('[P1] extracts title from "Lead Data Analyst" in profile', async () => {
       setupPdfText(
         'PROFILE\nSeasoned Lead Data Analyst focused on ML pipelines.',
       )
@@ -233,10 +215,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P2: Very large resume ─────────────────────────────────────────────────
-
   describe('very large resume', () => {
-    it('handles resume with thousands of lines without crashing', async () => {
+    it('[P2] handles resume with thousands of lines without crashing', async () => {
       const lines = ['SKILLS', 'TypeScript, React']
       for (let i = 0; i < 2000; i++) {
         lines.push(`Line ${i} of filler content describing work achievements.`)
@@ -251,10 +231,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P2: Unicode characters ────────────────────────────────────────────────
-
   describe('unicode characters', () => {
-    it('handles unicode in skills', async () => {
+    it('[P2] handles unicode in skills', async () => {
       setupPdfText('SKILLS\nC++, C#, R\u00e9sum\u00e9 Builder')
 
       const result = await parseResume(bufferFrom(''))
@@ -264,7 +242,7 @@ describe('resumeParser edge cases', () => {
       )
     })
 
-    it('handles unicode in company names', async () => {
+    it('[P2] handles unicode in company names', async () => {
       setupPdfText(
         'EXPERIENCE\n\nDeveloper at Soci\u00e9t\u00e9 G\u00e9n\u00e9rale\n2020 - 2022',
       )
@@ -275,10 +253,8 @@ describe('resumeParser edge cases', () => {
     })
   })
 
-  // ── P2: Resume with only education ────────────────────────────────────────
-
   describe('resume with only education section', () => {
-    it('returns empty skills and experience', async () => {
+    it('[P2] returns empty skills and experience', async () => {
       setupPdfText(
         'EDUCATION\nBachelor of Science in Computer Science\nMIT, 2020',
       )

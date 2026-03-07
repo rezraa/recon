@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('swr', () => ({
   useSWRConfig: () => ({ mutate: vi.fn() }),
@@ -13,10 +13,6 @@ let mockFetch: ReturnType<typeof vi.fn>
 beforeEach(() => {
   mockFetch = vi.fn()
   vi.spyOn(globalThis, 'fetch').mockImplementation(mockFetch as typeof fetch)
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
 })
 
 describe('useResumeUpload', () => {

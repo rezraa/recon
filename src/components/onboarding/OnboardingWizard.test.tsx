@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('framer-motion', async () => {
   const { framerMotionMock } = await import('@/test-utils/mocks/framer-motion')
@@ -17,11 +17,15 @@ vi.mock('./ResumeStep', () => ({
   },
 }))
 
-import { OnboardingWizard } from './OnboardingWizard'
+// Mock PreferencesStep to avoid SWR/fetch deps and report valid=true
+vi.mock('./PreferencesStep', () => ({
+  PreferencesStep: ({ onValidChange }: { onValidChange: (v: boolean) => void }) => {
+    React.useEffect(() => { onValidChange(true) }, [onValidChange])
+    return React.createElement('div', null, 'Set your job search preferences')
+  },
+}))
 
-afterEach(() => {
-  vi.restoreAllMocks()
-})
+import { OnboardingWizard } from './OnboardingWizard'
 
 describe('OnboardingWizard', () => {
   it('[P1] should render step 1 (Resume) by default', () => {

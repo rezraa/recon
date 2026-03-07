@@ -1,33 +1,23 @@
-export interface SourceRecord {
-  id: string
-  name: string
-  displayName: string | null
-  type: string | null
-  isEnabled: boolean | null
-  lastFetchAt: Date | null
-  lastError: unknown | null
-  listingsCount: number | null
-  healthStatus: string | null
-  createdAt: Date | null
-  updatedAt: Date | null
-}
+import { faker } from '@faker-js/faker'
+import type { z } from 'zod'
 
-let sourceCounter = 0
+import type { selectSourceSchema } from '@/lib/db/schema'
+
+export type SourceRecord = z.infer<typeof selectSourceSchema>
 
 export function createSource(overrides?: Partial<SourceRecord>): SourceRecord {
-  sourceCounter++
   return {
     id: crypto.randomUUID(),
-    name: `source-${Date.now()}-${sourceCounter}`,
-    displayName: `Test Source ${sourceCounter}`,
-    type: 'api',
+    name: faker.lorem.slug(),
+    displayName: faker.company.name(),
+    type: faker.helpers.arrayElement(['api', 'scraper', 'rss']),
     isEnabled: true,
     lastFetchAt: null,
     lastError: null,
-    listingsCount: 0,
+    listingsCount: faker.number.int({ min: 0, max: 500 }),
     healthStatus: 'healthy',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: faker.date.recent(),
+    updatedAt: faker.date.recent(),
     ...overrides,
   }
 }

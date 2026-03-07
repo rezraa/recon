@@ -17,7 +17,7 @@ function mockPdfText(text: string) {
 
 describe('parseResume', () => {
   describe('skill extraction', () => {
-    it('should extract comma-separated skills', async () => {
+    it('[P0] should extract comma-separated skills', async () => {
       mockPdfText(`
 SKILLS
 JavaScript, TypeScript, React, Node.js, PostgreSQL
@@ -32,7 +32,7 @@ JavaScript, TypeScript, React, Node.js, PostgreSQL
       ])
     })
 
-    it('should extract pipe-separated skills', async () => {
+    it('[P0] should extract pipe-separated skills', async () => {
       mockPdfText(`
 TECHNICAL SKILLS
 Python | Django | Flask | Docker | AWS
@@ -41,7 +41,7 @@ Python | Django | Flask | Docker | AWS
       expect(result.skills).toEqual(['Python', 'Django', 'Flask', 'Docker', 'AWS'])
     })
 
-    it('should extract bullet-listed skills', async () => {
+    it('[P0] should extract bullet-listed skills', async () => {
       mockPdfText(`
 SKILLS
 • React
@@ -52,7 +52,7 @@ SKILLS
       expect(result.skills).toEqual(['React', 'TypeScript', 'GraphQL'])
     })
 
-    it('should deduplicate skills (case-insensitive)', async () => {
+    it('[P1] should deduplicate skills (case-insensitive)', async () => {
       mockPdfText(`
 SKILLS
 JavaScript, javascript, JAVASCRIPT, TypeScript
@@ -61,7 +61,7 @@ JavaScript, javascript, JAVASCRIPT, TypeScript
       expect(result.skills).toEqual(['JavaScript', 'TypeScript'])
     })
 
-    it('should handle semicolon-separated skills', async () => {
+    it('[P2] should handle semicolon-separated skills', async () => {
       mockPdfText(`
 CORE COMPETENCIES
 Java; Spring Boot; Kubernetes
@@ -72,7 +72,7 @@ Java; Spring Boot; Kubernetes
   })
 
   describe('experience extraction', () => {
-    it('should extract "Title at Company" pattern', async () => {
+    it('[P0] should extract "Title at Company" pattern', async () => {
       mockPdfText(`
 EXPERIENCE
 
@@ -86,7 +86,7 @@ Built scalable systems.
       ])
     })
 
-    it('should extract "Title, Company" pattern', async () => {
+    it('[P0] should extract "Title, Company" pattern', async () => {
       mockPdfText(`
 WORK EXPERIENCE
 
@@ -100,7 +100,7 @@ Led frontend team.
       ])
     })
 
-    it('should handle "Present" as end date', async () => {
+    it('[P1] should handle "Present" as end date', async () => {
       mockPdfText(`
 PROFESSIONAL EXPERIENCE
 
@@ -115,7 +115,7 @@ Leading engineering team.
       ])
     })
 
-    it('should extract multiple experience entries', async () => {
+    it('[P1] should extract multiple experience entries', async () => {
       mockPdfText(`
 EXPERIENCE
 
@@ -133,7 +133,7 @@ Learned stuff.
       expect(result.experience[1].title).toBe('Junior Developer')
     })
 
-    it('should return null years when no date range found', async () => {
+    it('[P2] should return null years when no date range found', async () => {
       mockPdfText(`
 EXPERIENCE
 
@@ -149,7 +149,7 @@ Built things.
   })
 
   describe('job title extraction', () => {
-    it('should extract job titles from experience entries', async () => {
+    it('[P1] should extract job titles from experience entries', async () => {
       mockPdfText(`
 EXPERIENCE
 
@@ -166,26 +166,26 @@ Product Manager at Meta
   })
 
   describe('edge cases', () => {
-    it('should return empty result for empty PDF', async () => {
+    it('[P0] should return empty result for empty PDF', async () => {
       mockPdfText('')
       const result = await parseResume(Buffer.from('fake'))
       expect(result).toEqual({ skills: [], experience: [], jobTitles: [] })
     })
 
-    it('should return empty result for whitespace-only PDF', async () => {
+    it('[P1] should return empty result for whitespace-only PDF', async () => {
       mockPdfText('   \n\n   ')
       const result = await parseResume(Buffer.from('fake'))
       expect(result).toEqual({ skills: [], experience: [], jobTitles: [] })
     })
 
-    it('should handle PDF with no recognized sections', async () => {
+    it('[P1] should handle PDF with no recognized sections', async () => {
       mockPdfText('Just some random text without any section headers.')
       const result = await parseResume(Buffer.from('fake'))
       expect(result.skills).toEqual([])
       expect(result.experience).toEqual([])
     })
 
-    it('should handle PDF with skills but no experience', async () => {
+    it('[P1] should handle PDF with skills but no experience', async () => {
       mockPdfText(`
 SKILLS
 JavaScript, Python, Go
@@ -196,7 +196,7 @@ JavaScript, Python, Go
       expect(result.jobTitles).toEqual([])
     })
 
-    it('should propagate pdf-parse errors', async () => {
+    it('[P1] should propagate pdf-parse errors', async () => {
       mockPdfParseFn.mockRejectedValue(new Error('Invalid PDF') as never)
       await expect(parseResume(Buffer.from('fake'))).rejects.toThrow('Invalid PDF')
     })
