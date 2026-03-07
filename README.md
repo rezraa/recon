@@ -1,11 +1,12 @@
 # Recon
 
 [![CI](https://github.com/rezraa/recon/actions/workflows/ci.yml/badge.svg)](https://github.com/rezraa/recon/actions/workflows/ci.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg?style=for-the-badge)](LICENSE)
-[![Contributing](https://img.shields.io/badge/Contributing-Guide-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
-[![Architected by: AI + HILT](https://img.shields.io/badge/Architected_by-AI_+_HILT-blueviolet.svg?style=for-the-badge&logo=openai&logoColor=white)](#how-its-built)
-[![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
+[![Contributing](https://img.shields.io/badge/Contributing-Guide-brightgreen.svg)](CONTRIBUTING.md)
+[![Architected by: AI + HILT](https://img.shields.io/badge/Architected_by-AI_+_HILT-blueviolet.svg)](#how-its-built)
+[![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/rezraa)
 
 **Self-hosted job intelligence platform** that aggregates listings from multiple sources, scores them against your resume, and organizes your entire job search pipeline in one place.
 
@@ -59,7 +60,11 @@ pnpm dev
 
 ## Project Status
 
-This project is under active development.
+This project is under active development. Currently focused on the US job market with plans to expand to other regions.
+
+## Support
+
+If Recon helped your job search, consider [buying me a coffee](https://ko-fi.com/rezraa). It keeps the project going.
 
 ## License
 
