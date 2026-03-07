@@ -1,6 +1,3 @@
-// pdf-parse v1 uses `export =` which requires this import style
-import pdfParse from 'pdf-parse'
-
 export type { ExperienceEntry, ParsedResume } from './resumeTypes'
 
 import type { ExperienceEntry, ParsedResume } from './resumeTypes'
@@ -194,6 +191,9 @@ function extractJobTitles(
 }
 
 export async function parseResume(buffer: Buffer): Promise<ParsedResume> {
+  // Dynamic import to avoid pdf-parse self-test running at build time
+  // (pdf-parse v1 tries to read a test PDF on import, which breaks Next.js production builds)
+  const pdfParse = (await import('pdf-parse')).default
   const pdfData = await pdfParse(buffer)
   const text = pdfData.text
 
