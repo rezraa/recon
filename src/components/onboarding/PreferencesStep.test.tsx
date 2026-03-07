@@ -181,11 +181,14 @@ describe('PreferencesStep', () => {
   it('[P1] should pre-populate from existing preferences data', () => {
     mockUsePreferences.mockReturnValue({
       data: {
+        id: 'pref-existing',
         targetTitles: ['Existing Title'],
         salaryMin: 90000,
         salaryMax: 160000,
         locations: ['NYC'],
         remotePreference: 'hybrid_ok',
+        createdAt: '2026-03-06T00:00:00Z',
+        updatedAt: '2026-03-06T00:00:00Z',
       },
       error: undefined,
       isLoading: false,
@@ -234,6 +237,42 @@ describe('PreferencesStep', () => {
     await waitFor(() => {
       expect(screen.getByText('Network error. Please try again.')).toBeInTheDocument()
     })
+  })
+
+  it('[P1] should render retry button on API error and retry on click', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 500, message: 'Server error' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { id: 'pref-1' } }),
+      })
+
+    const onValidChange = vi.fn()
+    renderWithSWR(<PreferencesStep onValidChange={onValidChange} />)
+
+    const titleInput = screen.getByLabelText(/Target Job Titles/)
+    fireEvent.change(titleInput, { target: { value: 'Engineer' } })
+    fireEvent.keyDown(titleInput, { key: 'Enter' })
+
+    fireEvent.click(screen.getByText('Save & Continue'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Server error')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Retry')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Retry'))
+
+    await waitFor(() => {
+      expect(onValidChange).toHaveBeenCalledWith(true)
+    })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
   it('[P2] should show loading state while preferences load', () => {

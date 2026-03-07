@@ -149,7 +149,7 @@ export function PreferencesStep({ onValidChange }: StepProps) {
       const res = await fetch('/api/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(validation.data),
       })
 
       if (!res.ok) {
@@ -326,8 +326,11 @@ export function PreferencesStep({ onValidChange }: StepProps) {
 
         {/* API Error */}
         {errors.api && (
-          <div className="rounded border border-destructive bg-destructive/10 p-3">
+          <div className="rounded border border-destructive bg-destructive/10 p-3 flex items-center justify-between gap-2">
             <p className="text-sm text-destructive">{errors.api}</p>
+            <Button type="button" variant="outline" size="sm" onClick={handleSubmit} disabled={isSaving}>
+              Retry
+            </Button>
           </div>
         )}
 

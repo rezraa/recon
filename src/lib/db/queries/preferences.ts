@@ -12,10 +12,10 @@ export async function getPreferences(): Promise<PreferencesRow | null> {
 }
 
 export async function upsertPreferences(data: {
-  targetTitles: unknown
+  targetTitles: string[]
   salaryMin: number | null | undefined
   salaryMax: number | null | undefined
-  locations: unknown
+  locations: string[]
   remotePreference: string
 }): Promise<PreferencesRow> {
   const db = getDb()
