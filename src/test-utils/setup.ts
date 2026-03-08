@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 
 import { faker } from '@faker-js/faker'
-import { afterEach, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, vi } from 'vitest'
+
+import { server } from './msw/server'
 
 // Seed faker for deterministic test data across all test files
 faker.seed(42)
@@ -13,8 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-// MSW server lifecycle — populated when handlers are created in Story 2.x
-// import { server } from './msw/server'
-// beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-// afterEach(() => server.resetHandlers())
-// afterAll(() => server.close())
+// MSW server lifecycle
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())

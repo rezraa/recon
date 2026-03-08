@@ -20,7 +20,7 @@ describe('SourceError', () => {
     const retryAt = new Date('2026-01-01')
     const err = new SourceError({
       sourceName: 'Serply',
-      errorType: 'auth_failed',
+      errorType: 'auth_error',
       message: 'Invalid API key',
       retryAt,
     })
@@ -30,7 +30,7 @@ describe('SourceError', () => {
   it('[P1] should be an instance of Error', () => {
     const err = new SourceError({
       sourceName: 'test',
-      errorType: 'test',
+      errorType: 'unknown',
       message: 'test',
     })
     expect(err).toBeInstanceOf(Error)

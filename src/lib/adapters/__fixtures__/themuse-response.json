@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "id": 300001,
+      "name": "Frontend Engineer",
+      "company": {
+        "id": 5001,
+        "name": "Tech Solutions",
+        "short_name": "tech-solutions"
+      },
+      "contents": "<h2>About the Role</h2><p>We are looking for a <b>Senior</b> <em>React</em> Developer to build amazing user experiences.</p><ul><li>5+ years experience with React</li><li>Strong TypeScript skills</li></ul>",
+      "locations": [
+        { "name": "New York, NY" }
+      ],
+      "categories": [
+        { "name": "Engineering" }
+      ],
+      "levels": [
+        { "name": "Senior Level", "short_name": "senior" }
+      ],
+      "refs": {
+        "landing_page": "https://www.themuse.com/jobs/tech-solutions/frontend-engineer-300001"
+      },
+      "publication_date": "2024-03-07T00:00:00Z",
+      "type": "external"
+    },
+    {
+      "id": 300002,
+      "name": "Backend Developer",
+      "company": {
+        "id": 5002,
+        "name": "DataCo",
+        "short_name": "dataco"
+      },
+      "contents": "<p>Join DataCo as a Backend Developer. Work with Node.js, PostgreSQL, and Redis. Remote position available.</p>",
+      "locations": [
+        { "name": "Remote" }
+      ],
+      "categories": [
+        { "name": "Engineering" }
+      ],
+      "levels": [
+        { "name": "Mid Level", "short_name": "mid" }
+      ],
+      "refs": {
+        "landing_page": "https://www.themuse.com/jobs/dataco/backend-developer-300002"
+      },
+      "publication_date": "2024-03-06T00:00:00Z",
+      "type": "external"
+    }
+  ],
+  "page": 1,
+  "page_count": 10,
+  "total": 200
+}

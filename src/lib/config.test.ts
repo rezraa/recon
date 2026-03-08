@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { envSchema, getConfig, parseRedisConnection } from './config'
 
+const VALID_ENCRYPTION_KEY = 'a'.repeat(64)
+
 describe('envSchema', () => {
   it('[P0] should require DATABASE_URL', () => {
     const result = envSchema.safeParse({
       REDIS_URL: 'redis://localhost:6379',
+      ENCRYPTION_KEY: VALID_ENCRYPTION_KEY,
     })
     expect(result.success).toBe(false)
   })
@@ -13,6 +16,7 @@ describe('envSchema', () => {
   it('[P0] should require REDIS_URL', () => {
     const result = envSchema.safeParse({
       DATABASE_URL: 'postgresql://localhost:5432/recon',
+      ENCRYPTION_KEY: VALID_ENCRYPTION_KEY,
     })
     expect(result.success).toBe(false)
   })
@@ -21,6 +25,7 @@ describe('envSchema', () => {
     const result = envSchema.safeParse({
       DATABASE_URL: 'postgresql://localhost:5432/recon',
       REDIS_URL: 'redis://localhost:6379',
+      ENCRYPTION_KEY: VALID_ENCRYPTION_KEY,
     })
     expect(result.success).toBe(true)
   })
@@ -29,6 +34,7 @@ describe('envSchema', () => {
     const result = envSchema.safeParse({
       DATABASE_URL: '',
       REDIS_URL: 'redis://localhost:6379',
+      ENCRYPTION_KEY: VALID_ENCRYPTION_KEY,
     })
     expect(result.success).toBe(false)
   })
@@ -37,18 +43,35 @@ describe('envSchema', () => {
     const result = envSchema.safeParse({
       DATABASE_URL: 'postgresql://localhost:5432/recon',
       REDIS_URL: '',
+      ENCRYPTION_KEY: VALID_ENCRYPTION_KEY,
     })
     expect(result.success).toBe(false)
   })
 
-  it('[P1] should accept optional API keys', () => {
+  it('[P0] should require ENCRYPTION_KEY', () => {
     const result = envSchema.safeParse({
       DATABASE_URL: 'postgresql://localhost:5432/recon',
       REDIS_URL: 'redis://localhost:6379',
-      SERPLY_API_KEY: 'key-123',
-      GEMINI_API_KEY: 'gemini-key',
     })
-    expect(result.success).toBe(true)
+    expect(result.success).toBe(false)
+  })
+
+  it('[P0] should reject ENCRYPTION_KEY with wrong length', () => {
+    const result = envSchema.safeParse({
+      DATABASE_URL: 'postgresql://localhost:5432/recon',
+      REDIS_URL: 'redis://localhost:6379',
+      ENCRYPTION_KEY: 'too-short',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('[P0] should reject ENCRYPTION_KEY with non-hex characters', () => {
+    const result = envSchema.safeParse({
+      DATABASE_URL: 'postgresql://localhost:5432/recon',
+      REDIS_URL: 'redis://localhost:6379',
+      ENCRYPTION_KEY: 'g'.repeat(64),
+    })
+    expect(result.success).toBe(false)
   })
 })
 
@@ -56,19 +79,21 @@ describe('getConfig', () => {
   beforeEach(() => {
     vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/recon')
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379')
+    vi.stubEnv('ENCRYPTION_KEY', VALID_ENCRYPTION_KEY)
   })
 
   it('[P1] should return parsed config from process.env', () => {
     const config = getConfig()
     expect(config.DATABASE_URL).toBe('postgresql://localhost:5432/recon')
     expect(config.REDIS_URL).toBe('redis://localhost:6379')
+    expect(config.ENCRYPTION_KEY).toBe(VALID_ENCRYPTION_KEY)
   })
 
   it('[P1] should throw when required fields are missing', () => {
     vi.unstubAllEnvs()
-    // Clear the required env vars
     delete process.env.DATABASE_URL
     delete process.env.REDIS_URL
+    delete process.env.ENCRYPTION_KEY
     expect(() => getConfig()).toThrow()
   })
 })

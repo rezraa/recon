@@ -1,0 +1,32 @@
+{
+  "jobs": [
+    {
+      "id": 400001,
+      "url": "https://jobicy.com/jobs/400001-devops-engineer",
+      "jobTitle": "DevOps Engineer",
+      "companyName": "CloudFirst",
+      "jobIndustry": ["DevOps", "Cloud"],
+      "jobType": ["full-time"],
+      "jobGeo": "Remote",
+      "jobLevel": "Senior",
+      "jobExcerpt": "We need a DevOps engineer to manage our cloud infrastructure on AWS and GCP.",
+      "pubDate": "2024-03-07T12:00:00.000Z",
+      "annualSalaryMin": 110000,
+      "annualSalaryMax": 145000,
+      "salaryCurrency": "USD"
+    },
+    {
+      "id": 400002,
+      "url": "https://jobicy.com/jobs/400002-data-engineer",
+      "jobTitle": "Data Engineer",
+      "companyName": "DataFlow LLC",
+      "jobIndustry": ["Data Engineering"],
+      "jobType": ["full-time"],
+      "jobGeo": "New York, NY",
+      "jobLevel": "Mid",
+      "jobExcerpt": "Looking for a data engineer experienced with Spark and Airflow.",
+      "pubDate": "2024-03-06T12:00:00.000Z"
+    }
+  ],
+  "totalCount": 2
+}

@@ -1,0 +1,31 @@
+{
+  "jobs": [
+    {
+      "id": "200001",
+      "title": "Senior React Developer",
+      "companyName": "Google LLC",
+      "description": "Join our team as a Senior React Developer. You'll build scalable front-end applications serving millions of users. We use React, TypeScript, and GraphQL.",
+      "applicationLink": "https://himalayas.app/jobs/200001",
+      "categories": ["Engineering", "Frontend"],
+      "publishedDate": "2024-03-07T00:00:00.000Z",
+      "expiresAt": "2024-04-07T00:00:00.000Z",
+      "salary": "$130,000 - $170,000",
+      "locationRestrictions": ["Remote - US"],
+      "timezoneRestrictions": []
+    },
+    {
+      "id": "200002",
+      "title": "Full Stack Engineer",
+      "companyName": "Google",
+      "description": "Full stack engineer position working on internal tools.",
+      "applicationLink": "https://himalayas.app/jobs/200002",
+      "categories": ["Engineering"],
+      "publishedDate": "2024-03-07T00:00:00.000Z",
+      "salary": "$120k-$150k",
+      "locationRestrictions": ["NYC"]
+    }
+  ],
+  "totalCount": 2,
+  "offset": 0,
+  "limit": 5
+}

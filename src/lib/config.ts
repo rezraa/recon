@@ -3,11 +3,7 @@ import { z } from 'zod'
 export const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  SERPLY_API_KEY: z.string().optional(),
-  REMOTEOK_API_KEY: z.string().optional(),
-  JOBICY_API_KEY: z.string().optional(),
-  ARBEITNOW_API_KEY: z.string().optional(),
-  GEMINI_API_KEY: z.string().optional(),
+  ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be a 64-character hex string'),
 })
 
 export type EnvConfig = z.infer<typeof envSchema>

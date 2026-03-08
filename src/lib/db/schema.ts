@@ -70,6 +70,9 @@ export const sourcesTable = pgTable('sources', {
   lastError: jsonb('last_error'),
   listingsCount: integer('listings_count').default(0),
   healthStatus: text('health_status'),
+  config: jsonb('config'),
+  errorCount: integer('error_count').notNull().default(0),
+  consecutiveErrors: integer('consecutive_errors').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

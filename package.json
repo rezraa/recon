@@ -12,6 +12,7 @@
     "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "worker:dev": "tsx src/worker/index.ts",
     "worker:build": "tsc -p tsconfig.worker.json && tsc-alias -p tsconfig.worker.json",
     "ci": "pnpm lint && pnpm tsc --noEmit && pnpm tsc --noEmit -p tsconfig.worker.json && pnpm drizzle-kit check && pnpm vitest run && pnpm next build"

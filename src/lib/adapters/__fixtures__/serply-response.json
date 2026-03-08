@@ -1,0 +1,52 @@
+{
+  "jobs": [
+    {
+      "title": "Software Engineer",
+      "company_name": "MegaCorp",
+      "description": "Exciting opportunity for a software engineer.",
+      "snippet": "Exciting opportunity for a <b>software engineer</b>. Work with cutting-edge technology.",
+      "location": "Remote - US",
+      "link": "https://example.com/jobs/500001",
+      "apply_link": "https://megacorp.com/apply/500001",
+      "via": "via MegaCorp Careers",
+      "extensions": [
+        "Full-time",
+        "$140,000 - $180,000 a year",
+        "Health insurance",
+        "Dental insurance"
+      ],
+      "detected_extensions": {
+        "schedule_type": "Full-time",
+        "salary": "$140,000 - $180,000 a year",
+        "salary_min": 140000,
+        "salary_max": 180000
+      },
+      "job_id": "serply-500001"
+    },
+    {
+      "title": "Product Manager",
+      "company_name": "StartupXYZ",
+      "description": "Product manager needed.",
+      "snippet": "Product manager needed for a growing startup.",
+      "location": "San Francisco, CA",
+      "link": "https://example.com/jobs/500002",
+      "via": "via LinkedIn",
+      "extensions": [
+        "Full-time",
+        "Competitive"
+      ],
+      "detected_extensions": {
+        "schedule_type": "Full-time",
+        "salary": "Competitive"
+      },
+      "job_id": "serply-500002"
+    }
+  ],
+  "metadata": {
+    "rate_limit": {
+      "remaining": 8,
+      "limit": 10,
+      "reset_at": "2024-03-09T00:00:00.000Z"
+    }
+  }
+}
