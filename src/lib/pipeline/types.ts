@@ -60,5 +60,23 @@ export interface NormalizerResult {
   skippedCount: number
 }
 
+// ─── Scoring Types ─────────────────────────────────────────────────────────
+
+export interface ScoringAxisResult {
+  score: number        // 0-100 per axis
+  weight: number       // 0.40, 0.25, 0.20, 0.15
+  signals: {
+    keyword: number | null   // keyword/BM25 signal score (0-1), null if no signal
+    semantic: number | null  // embedding cosine similarity (0-1), null if no signal
+  }
+}
+
+export interface MatchBreakdown {
+  skills: ScoringAxisResult
+  experience: ScoringAxisResult
+  seniority: ScoringAxisResult
+  techStack: ScoringAxisResult
+}
+
 // Re-export for convenience
 export type { RawJobListing }

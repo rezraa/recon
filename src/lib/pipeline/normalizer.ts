@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 
 import { inferRemote } from '@/lib/adapters/utils'
+import { getZeroShotClassifier } from '@/lib/ai/models'
 import { sanitizeHtml } from '@/lib/utils'
 
 import type { NormalizedJob, NormalizerResult, RawJobListing, SourceAttribution } from './types'
@@ -35,31 +36,57 @@ function sanitizeText(text: string): string {
     .trim()
 }
 
-// ─── Benefits Extraction ────────────────────────────────────────────────────
+// ─── Benefits Extraction (Zero-Shot Classification) ────────────────────────
 
-const BENEFIT_KEYWORDS: readonly string[] = [
-  '401(k)', '401k',
-  'health insurance', 'medical insurance', 'dental', 'vision',
-  'pto', 'paid time off', 'unlimited pto', 'vacation',
-  'equity', 'stock options', 'rsu', 'espp',
-  'bonus', 'signing bonus',
-  'parental leave', 'maternity leave', 'paternity leave',
-  'gym', 'wellness', 'tuition reimbursement',
-  'flexible hours', 'work from home', 'remote work',
-  'life insurance', 'disability insurance',
-  'commuter benefits', 'relocation',
-]
+const BENEFIT_LABELS = [
+  'health insurance',
+  'retirement benefits',
+  'paid time off',
+  'equity compensation',
+  'remote work',
+  'parental leave',
+  'professional development',
+  'wellness benefits',
+] as const
 
-/** Extract benefits from description text when not provided as structured data */
-function extractBenefits(descriptionText: string): string[] | undefined {
-  const lower = descriptionText.toLowerCase()
-  const found = BENEFIT_KEYWORDS.filter((kw) => lower.includes(kw))
-  return found.length > 0 ? [...new Set(found)] : undefined
+/** Extract benefits from description text using zero-shot classification */
+async function extractBenefits(descriptionText: string): Promise<string[] | undefined> {
+  if (!descriptionText || descriptionText.length < 10) return undefined
+
+  // Split into sentences and classify in parallel
+  const sentences = descriptionText
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 10)
+    .slice(0, 5)
+
+  if (sentences.length === 0) return undefined
+
+  const classifier = await getZeroShotClassifier()
+  const found = new Set<string>()
+
+  const results = await Promise.all(
+    sentences.map((sentence) => classifier(sentence, [...BENEFIT_LABELS])),
+  )
+
+  for (const raw of results) {
+    const result = Array.isArray(raw) ? raw[0] : raw
+    const labels = (result as { labels?: string[] }).labels ?? []
+    const scores = (result as { scores?: number[] }).scores ?? []
+
+    for (let i = 0; i < labels.length; i++) {
+      if (scores[i] > 0.5) {
+        found.add(labels[i])
+      }
+    }
+  }
+
+  return found.size > 0 ? [...found] : undefined
 }
 
 // ─── Normalizer ─────────────────────────────────────────────────────────────
 
-export function normalize(raw: RawJobListing[]): NormalizerResult {
+export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult> {
   const normalized: NormalizedJob[] = []
   let skippedCount = 0
   const seenFingerprints = new Set<string>()
@@ -88,8 +115,8 @@ export function normalize(raw: RawJobListing[]): NormalizerResult {
 
       const descriptionText = sanitizeText(listing.description_text)
 
-      // Extract benefits from description when not provided as structured data
-      const benefits = extractBenefits(descriptionText)
+      // Extract benefits from description using zero-shot classification
+      const benefits = await extractBenefits(descriptionText)
 
       // Prepare search text for tsvector population at DB insert time
       const searchText = [title, company, descriptionText].filter(Boolean).join(' ')

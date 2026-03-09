@@ -1,6 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { RawJobListing } from '@/lib/adapters/types'
+
+vi.mock('@huggingface/transformers', () => ({
+  pipeline: vi.fn(),
+}))
+
+vi.mock('@/lib/ai/models', () => ({
+  getZeroShotClassifier: vi.fn().mockResolvedValue(
+    vi.fn().mockResolvedValue({
+      labels: [],
+      scores: [],
+    }),
+  ),
+}))
 
 import { normalize } from './normalizer'
 
@@ -24,8 +37,8 @@ function createRawListing(overrides?: Partial<RawJobListing>): RawJobListing {
 
 describe('normalizer sanitization edge cases', () => {
   describe('script tag variants', () => {
-    it('[P1] should strip script tags from description_text', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip script tags from description_text', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: 'Before <script>alert("xss")</script> After',
         }),
@@ -35,8 +48,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).toContain('After')
     })
 
-    it('[P1] should strip script tags with src attribute', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip script tags with src attribute', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: 'Text <script src="https://evil.com/xss.js"></script> more',
         }),
@@ -45,8 +58,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('evil.com')
     })
 
-    it('[P1] should strip case-insensitive SCRIPT tags', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip case-insensitive SCRIPT tags', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<SCRIPT>document.cookie</SCRIPT>',
         }),
@@ -57,8 +70,8 @@ describe('normalizer sanitization edge cases', () => {
   })
 
   describe('event handler variants', () => {
-    it('[P1] should strip onerror on img tags', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip onerror on img tags', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<img src="x" onerror="alert(1)"> job desc',
         }),
@@ -66,8 +79,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('onerror')
     })
 
-    it('[P1] should strip onload handler', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip onload handler', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<body onload="malicious()"> content',
         }),
@@ -75,8 +88,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('onload')
     })
 
-    it('[P2] should strip onmouseover handler', () => {
-      const { normalized } = normalize([
+    it('[P2] should strip onmouseover handler', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<div onmouseover="steal()">hover me</div>',
         }),
@@ -84,8 +97,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('onmouseover')
     })
 
-    it('[P2] should strip onfocus handler', () => {
-      const { normalized } = normalize([
+    it('[P2] should strip onfocus handler', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<input onfocus="evil()" type="text">',
         }),
@@ -95,8 +108,8 @@ describe('normalizer sanitization edge cases', () => {
   })
 
   describe('javascript: URI removal', () => {
-    it('[P1] should strip javascript: URIs from description_text', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip javascript: URIs from description_text', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<a href="javascript:alert(1)">Apply</a>',
         }),
@@ -104,8 +117,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('javascript:')
     })
 
-    it('[P2] should strip mixed-case JavaScript: URIs', () => {
-      const { normalized } = normalize([
+    it('[P2] should strip mixed-case JavaScript: URIs', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<a href="JavaScript:void(0)">Link</a>',
         }),
@@ -116,8 +129,8 @@ describe('normalizer sanitization edge cases', () => {
   })
 
   describe('HTML tag stripping in description_text', () => {
-    it('[P1] should strip all HTML tags from description_text', () => {
-      const { normalized } = normalize([
+    it('[P1] should strip all HTML tags from description_text', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<p>Build <b>amazing</b> <em>software</em></p>',
         }),
@@ -130,8 +143,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).toContain('software')
     })
 
-    it('[P1] should collapse whitespace after tag stripping', () => {
-      const { normalized } = normalize([
+    it('[P1] should collapse whitespace after tag stripping', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: '<p>Word1</p>   <p>Word2</p>',
         }),
@@ -141,18 +154,17 @@ describe('normalizer sanitization edge cases', () => {
   })
 
   describe('description_html passthrough', () => {
-    it('[P1] should NOT sanitize description_html (no-modify policy)', () => {
+    it('[P1] should NOT sanitize description_html (no-modify policy)', async () => {
       const html = '<p>Build <script>alert(1)</script> things</p>'
-      const { normalized } = normalize([
+      const { normalized } = await normalize([
         createRawListing({ description_html: html }),
       ])
-      // description_html should be passed through unchanged (no-modify policy)
       expect(normalized[0].descriptionHtml).toBe(html)
     })
 
-    it('[P1] should preserve description_html with event handlers (no-modify policy)', () => {
+    it('[P1] should preserve description_html with event handlers (no-modify policy)', async () => {
       const html = '<div onclick="apply()">Apply Now</div>'
-      const { normalized } = normalize([
+      const { normalized } = await normalize([
         createRawListing({ description_html: html }),
       ])
       expect(normalized[0].descriptionHtml).toBe(html)
@@ -160,8 +172,8 @@ describe('normalizer sanitization edge cases', () => {
   })
 
   describe('combined XSS vectors', () => {
-    it('[P1] should handle multiple XSS vectors in same text', () => {
-      const { normalized } = normalize([
+    it('[P1] should handle multiple XSS vectors in same text', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text:
             '<script>alert(1)</script> <img onerror="hack()" src=x> <a href="javascript:void(0)">click</a>',
@@ -172,8 +184,8 @@ describe('normalizer sanitization edge cases', () => {
       expect(normalized[0].descriptionText).not.toContain('javascript:')
     })
 
-    it('[P2] should produce clean text after stripping all dangerous content', () => {
-      const { normalized } = normalize([
+    it('[P2] should produce clean text after stripping all dangerous content', async () => {
+      const { normalized } = await normalize([
         createRawListing({
           description_text: 'We are hiring! <script>steal()</script> Apply today.',
         }),
