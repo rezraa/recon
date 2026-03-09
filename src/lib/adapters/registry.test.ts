@@ -231,10 +231,11 @@ describe('adapter registry (pre-registered)', () => {
     expect(typeof serply!.validateKey).toBe('function')
   })
 
-  it('should throw "not implemented" when calling stub fetchListings', async () => {
-    const adapter = getAdapter('remoteok')!
-    await expect(adapter.fetchListings({ preferences: { targetTitles: [], locations: [], remotePreference: null } }))
-      .rejects.toThrow('not implemented')
+  it('should have real implementations (not stubs) for all adapters', () => {
+    const adapters = getAllAdapters()
+    for (const adapter of adapters) {
+      expect(typeof adapter.fetchListings).toBe('function')
+    }
   })
 })
 

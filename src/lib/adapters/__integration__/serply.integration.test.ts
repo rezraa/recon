@@ -1,21 +1,41 @@
 import { describe, expect, it } from 'vitest'
 
-describe('Serply Key Validation Integration', () => {
-  it.skipIf(!process.env.SERPLY_API_KEY)('should validate real API key', async () => {
-    const apiKey = process.env.SERPLY_API_KEY!
+import { serplyAdapter } from '../serply'
+import { rawJobListingSchema } from '../types'
 
-    const response = await fetch('https://api.serply.io/v1/job/search/q=test', {
-      headers: { 'X-Api-Key': apiKey },
-    })
+/** @priority-3 */
+describe('Serply Integration', () => {
+  it.skipIf(!process.env.SERPLY_API_KEY)('should fetch real listings via adapter and validate against schema', async () => {
+    const config = {
+      apiKey: process.env.SERPLY_API_KEY!,
+      preferences: { targetTitles: ['software engineer'], locations: ['Remote'], remotePreference: null },
+    }
 
-    expect(response.ok).toBe(true)
+    const listings = await serplyAdapter.fetchListings(config)
+
+    expect(Array.isArray(listings)).toBe(true)
+
+    for (const listing of listings) {
+      const result = rawJobListingSchema.safeParse(listing)
+      expect(result.success, `Zod validation failed: ${JSON.stringify(result)}`).toBe(true)
+      expect(listing.source_name).toBe('serply')
+      expect(listing.external_id).toMatch(/^serply-/)
+    }
+
+    // Validate rate limit status after fetch
+    const rateLimitStatus = serplyAdapter.getRateLimitStatus!()
+    if (rateLimitStatus) {
+      expect(rateLimitStatus.remaining).toBeGreaterThanOrEqual(0)
+      expect(rateLimitStatus.resetsAt).toBeInstanceOf(Date)
+    }
   })
 
   it('should reject invalid API key', async () => {
-    const response = await fetch('https://api.serply.io/v1/job/search/q=test', {
-      headers: { 'X-Api-Key': 'invalid-key-12345' },
-    })
+    const config = {
+      apiKey: 'invalid-key-12345',
+      preferences: { targetTitles: ['test'], locations: [], remotePreference: null },
+    }
 
-    expect([401, 403]).toContain(response.status)
+    await expect(serplyAdapter.fetchListings(config)).rejects.toThrow()
   })
 })

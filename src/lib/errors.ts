@@ -21,6 +21,15 @@ export class SourceError extends Error {
 
 export function wrapAdapterError(sourceName: string, error: unknown): SourceError {
   if (error instanceof SourceError) {
+    // Re-wrap with correct sourceName if it was set to a generic value (e.g., 'unknown')
+    if (error.sourceName !== sourceName) {
+      return new SourceError({
+        sourceName,
+        errorType: error.errorType,
+        message: error.message.replace(`[${error.sourceName}]`, `[${sourceName}]`),
+        retryAt: error.retryAt,
+      })
+    }
     return error
   }
 
