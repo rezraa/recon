@@ -1,0 +1,132 @@
+import { createHash } from 'crypto'
+
+import { inferRemote } from '@/lib/adapters/utils'
+import { sanitizeHtml } from '@/lib/utils'
+
+import type { NormalizedJob, NormalizerResult, RawJobListing, SourceAttribution } from './types'
+
+// ─── Fingerprint ────────────────────────────────────────────────────────────
+
+/** Shared fingerprint generation — used by normalizer and deduplicator */
+export function generateFingerprint(title: string, company: string, location: string): string {
+  const input = (title + company + location)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, '')
+  return createHash('sha256').update(input).digest('hex').slice(0, 16)
+}
+
+// ─── Title Case ─────────────────────────────────────────────────────────────
+
+function toTitleCase(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase())
+}
+
+// ─── Sanitize Text ──────────────────────────────────────────────────────────
+
+/** Compose sanitizeHtml (XSS removal) + HTML tag stripping for plain text output */
+function sanitizeText(text: string): string {
+  return sanitizeHtml(text)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// ─── Benefits Extraction ────────────────────────────────────────────────────
+
+const BENEFIT_KEYWORDS: readonly string[] = [
+  '401(k)', '401k',
+  'health insurance', 'medical insurance', 'dental', 'vision',
+  'pto', 'paid time off', 'unlimited pto', 'vacation',
+  'equity', 'stock options', 'rsu', 'espp',
+  'bonus', 'signing bonus',
+  'parental leave', 'maternity leave', 'paternity leave',
+  'gym', 'wellness', 'tuition reimbursement',
+  'flexible hours', 'work from home', 'remote work',
+  'life insurance', 'disability insurance',
+  'commuter benefits', 'relocation',
+]
+
+/** Extract benefits from description text when not provided as structured data */
+function extractBenefits(descriptionText: string): string[] | undefined {
+  const lower = descriptionText.toLowerCase()
+  const found = BENEFIT_KEYWORDS.filter((kw) => lower.includes(kw))
+  return found.length > 0 ? [...new Set(found)] : undefined
+}
+
+// ─── Normalizer ─────────────────────────────────────────────────────────────
+
+export function normalize(raw: RawJobListing[]): NormalizerResult {
+  const normalized: NormalizedJob[] = []
+  let skippedCount = 0
+  const seenFingerprints = new Set<string>()
+
+  for (const listing of raw) {
+    try {
+      const title = toTitleCase(listing.title)
+      const company = listing.company.trim()
+      const location = listing.location?.trim()
+
+      const fingerprint = generateFingerprint(
+        title,
+        company,
+        location ?? '',
+      )
+
+      // Within-batch dedup: skip fingerprint-identical listings
+      if (seenFingerprints.has(fingerprint)) {
+        skippedCount++
+        continue
+      }
+      seenFingerprints.add(fingerprint)
+
+      // Preserve three-state is_remote contract from adapters
+      const isRemote = listing.is_remote ?? inferRemote(listing.location)
+
+      const descriptionText = sanitizeText(listing.description_text)
+
+      // Extract benefits from description when not provided as structured data
+      const benefits = extractBenefits(descriptionText)
+
+      // Prepare search text for tsvector population at DB insert time
+      const searchText = [title, company, descriptionText].filter(Boolean).join(' ')
+
+      const source: SourceAttribution = {
+        name: listing.source_name,
+        external_id: listing.external_id,
+        fetched_at: new Date().toISOString(),
+      }
+
+      const job: NormalizedJob = {
+        externalId: listing.external_id,
+        sourceName: listing.source_name,
+        title,
+        company,
+        descriptionHtml: listing.description_html,
+        descriptionText,
+        salaryMin: listing.salary_min,
+        salaryMax: listing.salary_max,
+        location: location ?? undefined,
+        isRemote,
+        sourceUrl: listing.source_url,
+        applyUrl: listing.apply_url,
+        benefits,
+        rawData: listing.raw_data,
+        fingerprint,
+        searchText,
+        sources: [source],
+        discoveredAt: new Date(),
+        pipelineStage: 'discovered',
+      }
+
+      normalized.push(job)
+    } catch {
+      skippedCount++
+    }
+  }
+
+  return { normalized, skippedCount }
+}

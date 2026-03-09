@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -20,6 +21,25 @@ const tsvector = customType<{ data: string }>({
   },
 })
 
+// Custom vector type for pgvector embeddings
+const vector = customType<{ data: number[] }>({
+  dataType() {
+    return 'vector(384)'
+  },
+  toDriver(value: number[]) {
+    return `[${value.join(',')}]`
+  },
+  fromDriver(value: unknown) {
+    if (typeof value === 'string') {
+      return value
+        .slice(1, -1)
+        .split(',')
+        .map(Number)
+    }
+    return value as number[]
+  },
+})
+
 // ─── Jobs Table ───────────────────────────────────────────────────────────────
 
 export const jobsTable = pgTable(
@@ -30,14 +50,19 @@ export const jobsTable = pgTable(
     sourceName: text('source_name').notNull(),
     title: text('title'),
     company: text('company'),
-    description: text('description'),
+    descriptionHtml: text('description_html'),
+    descriptionText: text('description_text'),
     salaryMin: integer('salary_min'),
     salaryMax: integer('salary_max'),
     location: text('location'),
     isRemote: boolean('is_remote').default(false),
-    url: text('url'),
+    sourceUrl: text('source_url'),
+    applyUrl: text('apply_url'),
     benefits: jsonb('benefits'),
     rawData: jsonb('raw_data'),
+    embedding: vector('embedding'),
+    sources: jsonb('sources').default(sql`'[]'::jsonb`),
+    dedupConfidence: real('dedup_confidence'),
     matchScore: integer('match_score'),
     matchBreakdown: jsonb('match_breakdown'),
     pipelineStage: text('pipeline_stage').default('discovered'),
@@ -55,6 +80,7 @@ export const jobsTable = pgTable(
     uniqueIndex('idx_jobs_source_name_external_id').on(table.sourceName, table.externalId),
     index('idx_jobs_pipeline_stage').on(table.pipelineStage),
     index('idx_jobs_search_vector').using('gin', sql`${table.searchVector}`),
+    index('idx_jobs_embedding').using('hnsw', sql`${table.embedding} vector_cosine_ops`),
   ],
 )
 
