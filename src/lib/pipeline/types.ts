@@ -28,6 +28,7 @@ export interface NormalizedJob {
   sources: SourceAttribution[]
   discoveredAt: Date
   pipelineStage: string
+  embedding?: number[]  // 384-dim pgvector embedding, populated after embed step
 }
 
 // ─── Source Attribution ─────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { and, eq, or, sql } from 'drizzle-orm'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 
+import { cosineSimilarity } from '@/lib/ai/embeddings'
 import * as schema from '@/lib/db/schema'
 
 import { generateFingerprint } from './normalizer'
@@ -81,17 +82,24 @@ export async function deduplicate(
     }
 
     // Step 2: Cross-source dedup with RRF confidence scoring
-    // Broaden candidate search: match by company OR title (catches fuzzy cross-source dupes)
-    const candidates = await db
-      .select()
-      .from(schema.jobsTable)
-      .where(
-        or(
-          sql`lower(${schema.jobsTable.company}) = lower(${job.company})`,
-          sql`lower(${schema.jobsTable.title}) = lower(${job.title})`,
-        ),
-      )
-      .limit(50)
+    // Use pgvector nearest-neighbor when embedding available, fallback to SQL text match
+    const embeddingLiteral = job.embedding ? `[${job.embedding.join(',')}]` : null
+    const candidates = embeddingLiteral
+      ? await db
+          .select()
+          .from(schema.jobsTable)
+          .where(sql`${schema.jobsTable.embedding} <=> ${embeddingLiteral}::vector < 0.5`)
+          .limit(50)
+      : await db
+          .select()
+          .from(schema.jobsTable)
+          .where(
+            or(
+              sql`lower(${schema.jobsTable.company}) = lower(${job.company})`,
+              sql`lower(${schema.jobsTable.title}) = lower(${job.title})`,
+            ),
+          )
+          .limit(50)
 
     let bestMatch: { record: typeof candidates[0]; confidence: number } | null = null
 
@@ -132,8 +140,16 @@ export async function deduplicate(
         signals.push(null)
       }
 
-      // Signal 5: Title similarity (stub - null until embeddings in Story 2-9)
-      signals.push(null)
+      // Signal 5: Title embedding similarity via cosine
+      const candidateEmbedding = candidate.embedding as number[] | null
+      if (job.embedding && candidateEmbedding) {
+        const jobEmb = new Float32Array(job.embedding)
+        const candEmb = new Float32Array(candidateEmbedding)
+        const sim = cosineSimilarity(jobEmb, candEmb)
+        signals.push({ rank: Math.max(1, Math.round((1 - sim) * 100)) })
+      } else {
+        signals.push(null)
+      }
 
       const confidence = computeRRFScore(signals)
 

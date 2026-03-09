@@ -1,20 +1,28 @@
 import { Worker } from 'bullmq'
+import { exec } from 'child_process'
 import { sql } from 'drizzle-orm'
+import { promisify } from 'util'
 
 import { getConfig, parseRedisConnection } from '@/lib/config'
 import { getDb } from '@/lib/db/client'
 
-function log(level: 'info' | 'warn' | 'error', event: string, extra?: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    level,
-    event,
-    timestamp: new Date().toISOString(),
-    ...extra,
-  }))
-}
+import { log } from './logger'
+import { discoveryProcessor } from './processors/discovery'
+
+const execAsync = promisify(exec)
 
 export async function startWorker() {
   log('info', 'worker.starting')
+
+  // Run migrations idempotently on startup (async — does not block event loop)
+  try {
+    await execAsync('npx drizzle-kit migrate')
+    log('info', 'worker.migrations.complete')
+  } catch (err) {
+    log('warn', 'worker.migrations.skipped', {
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
 
   const config = getConfig()
 
@@ -26,12 +34,9 @@ export async function startWorker() {
   const redisConnection = parseRedisConnection(config.REDIS_URL)
 
   // Create worker listening on discovery-pipeline queue
-  // Processors will be registered in Epic 2 stories
   const worker = new Worker(
     'discovery-pipeline',
-    async (job) => {
-      log('info', 'worker.job.received', { jobName: job.name, jobId: job.id })
-    },
+    discoveryProcessor,
     { connection: redisConnection },
   )
 
