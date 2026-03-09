@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach,describe, expect, it, vi } from 'vitest'
 
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
@@ -176,7 +176,7 @@ vi.mock('@/lib/pipeline/scoring', () => ({
 
 // ─── Import after mocks ─────────────────────────────────────────────────────
 
-import { discoveryProcessor, type DiscoveryJobData } from './discovery'
+import { type DiscoveryJobData,discoveryProcessor } from './discovery'
 
 function createMockJob(data: DiscoveryJobData) {
   return {
