@@ -18,9 +18,11 @@ import { useJobs } from '@/hooks/useJobs'
 import { useResumeRedirect } from '@/hooks/useResume'
 
 function formatSalary(min: number | null, max: number | null): string {
-  if (min !== null && max !== null) return `$${Math.round(min / 1000)}k – $${Math.round(max / 1000)}k`
-  if (min !== null) return `$${Math.round(min / 1000)}k+`
-  if (max !== null) return `Up to $${Math.round(max / 1000)}k`
+  const lo = min && min > 0 ? min : null
+  const hi = max && max > 0 ? max : null
+  if (lo && hi) return `$${Math.round(lo / 1000)}k – $${Math.round(hi / 1000)}k`
+  if (lo) return `$${Math.round(lo / 1000)}k+`
+  if (hi) return `Up to $${Math.round(hi / 1000)}k`
   return '—'
 }
 
@@ -103,13 +105,15 @@ export default function Home() {
             {total > 0 ? `${total} job${total !== 1 ? 's' : ''} discovered` : 'Job intelligence feed'}
           </p>
         </div>
-        <Button
-          onClick={handleRunDiscovery}
-          disabled={isStarting || runId !== null}
-          size="sm"
-        >
-          {isStarting ? 'Starting...' : 'Run Discovery'}
-        </Button>
+        {!isEmpty && (
+          <Button
+            onClick={handleRunDiscovery}
+            disabled={isStarting || runId !== null}
+            size="sm"
+          >
+            {isStarting ? 'Starting...' : 'Run Discovery'}
+          </Button>
+        )}
       </div>
 
       {discoveryError && (

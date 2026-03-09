@@ -9,7 +9,7 @@ import { getResume } from '@/lib/db/queries/resume'
 import { getSourceApiKey } from '@/lib/db/queries/sources'
 import * as schema from '@/lib/db/schema'
 import { deduplicate } from '@/lib/pipeline/deduplicator'
-import { normalize } from '@/lib/pipeline/normalizer'
+import { normalize, type NormalizeOptions } from '@/lib/pipeline/normalizer'
 import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
 import { scoreJob } from '@/lib/pipeline/scoring'
 import type { NormalizedJob } from '@/lib/pipeline/types'
@@ -108,18 +108,24 @@ async function insertNewJobs(jobs: NormalizedJob[]): Promise<void> {
 
 async function scoreAndUpdateJobs(jobs: NormalizedJob[], resume: ParsedResume): Promise<void> {
   const db = getDb()
+  const BATCH_SIZE = 5
 
-  for (const job of jobs) {
-    const { matchScore, matchBreakdown } = await scoreJob(job, resume)
-    await db
-      .update(schema.jobsTable)
-      .set({ matchScore, matchBreakdown })
-      .where(
-        and(
-          eq(schema.jobsTable.sourceName, job.sourceName),
-          eq(schema.jobsTable.externalId, job.externalId),
-        ),
-      )
+  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+    const batch = jobs.slice(i, i + BATCH_SIZE)
+    await Promise.all(
+      batch.map(async (job) => {
+        const { matchScore, matchBreakdown } = await scoreJob(job, resume)
+        await db
+          .update(schema.jobsTable)
+          .set({ matchScore, matchBreakdown })
+          .where(
+            and(
+              eq(schema.jobsTable.sourceName, job.sourceName),
+              eq(schema.jobsTable.externalId, job.externalId),
+            ),
+          )
+      }),
+    )
   }
 }
 
@@ -225,9 +231,21 @@ async function processSource(
     return { fetched: 0, newCount: 0, deduplicated: 0 }
   }
 
-  // 2. Normalize (async — benefits extraction uses zero-shot classifier)
-  const { normalized } = await normalize(rawListings)
-  log('info', 'pipeline.source.normalize.done', { source: adapter.name, count: normalized.length })
+  // 2. Normalize — skip expensive benefits extraction on re-fetches
+  const db = getDb()
+  const existingCount = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(schema.jobsTable)
+    .where(eq(schema.jobsTable.sourceName, adapter.name))
+    .then((rows) => rows[0]?.count ?? 0)
+
+  const normalizeOpts: NormalizeOptions = existingCount > 0 ? { skipBenefits: true } : {}
+  const { normalized } = await normalize(rawListings, normalizeOpts)
+  log('info', 'pipeline.source.normalize.done', {
+    source: adapter.name,
+    count: normalized.length,
+    skipBenefits: normalizeOpts.skipBenefits ?? false,
+  })
 
   // 3. Embed (in-memory — populates job.embedding before dedup)
   await embedJobs(normalized)
@@ -246,11 +264,21 @@ async function processSource(
   await insertNewJobs(dedupResult.new)
   log('info', 'pipeline.source.insert.done', { source: adapter.name, count: dedupResult.new.length })
 
-  // 6. Score (only if resume available)
+  // 6. Score only NEW jobs and updated jobs that lack a score
   if (resume) {
-    const jobsToScore = [...dedupResult.new, ...dedupResult.updated]
-    await scoreAndUpdateJobs(jobsToScore, resume)
-    log('info', 'pipeline.source.score.done', { source: adapter.name, scored: jobsToScore.length })
+    const jobsToScore = dedupResult.new
+    // For updated (duplicate) jobs, only re-score if they had no score before
+    if (dedupResult.updatedNeedScore) {
+      jobsToScore.push(...dedupResult.updatedNeedScore)
+    }
+    if (jobsToScore.length > 0) {
+      await scoreAndUpdateJobs(jobsToScore, resume)
+    }
+    log('info', 'pipeline.source.score.done', {
+      source: adapter.name,
+      scored: jobsToScore.length,
+      skippedAlreadyScored: dedupResult.updated.length - (dedupResult.updatedNeedScore?.length ?? 0),
+    })
   }
 
   return {

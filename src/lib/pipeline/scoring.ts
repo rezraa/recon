@@ -8,10 +8,10 @@ import type { MatchBreakdown, NormalizedJob, ScoringAxisResult, Signal } from '.
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const WEIGHTS = {
-  skills: 0.40,
-  experience: 0.25,
-  seniority: 0.20,
-  techStack: 0.15,
+  skills: 0.45,
+  experience: 0.15,
+  seniority: 0.15,
+  techStack: 0.25,
 } as const
 
 const SENIORITY_TERMS = [

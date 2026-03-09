@@ -56,7 +56,7 @@ describe('ResumeStep', () => {
   })
 
   describe('file validation', () => {
-    it('[P0] should show error for non-PDF files', async () => {
+    it('[P0] should show error for non-PDF/DOCX files', async () => {
       const onValidChange = vi.fn()
       render(<ResumeStep onValidChange={onValidChange} />)
 
@@ -64,7 +64,7 @@ describe('ResumeStep', () => {
       const file = new File(['not-pdf'], 'doc.txt', { type: 'text/plain' })
       fireEvent.change(input, { target: { files: [file] } })
 
-      expect(screen.getByText('Please upload a PDF file')).toBeDefined()
+      expect(screen.getByText('Please upload a PDF or DOCX file')).toBeDefined()
       expect(mockUpload).not.toHaveBeenCalled()
     })
 

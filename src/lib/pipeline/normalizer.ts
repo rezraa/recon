@@ -6,6 +6,13 @@ import { sanitizeHtml } from '@/lib/utils'
 
 import type { NormalizedJob, NormalizerResult, RawJobListing, SourceAttribution } from './types'
 
+// ─── Options ──────────────────────────────────────────────────────────────
+
+export interface NormalizeOptions {
+  /** Skip expensive benefits extraction (use when jobs will likely be deduped) */
+  skipBenefits?: boolean
+}
+
 // ─── Fingerprint ────────────────────────────────────────────────────────────
 
 /** Shared fingerprint generation — used by normalizer and deduplicator */
@@ -86,7 +93,7 @@ async function extractBenefits(descriptionText: string): Promise<string[] | unde
 
 // ─── Normalizer ─────────────────────────────────────────────────────────────
 
-export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult> {
+export async function normalize(raw: RawJobListing[], options?: NormalizeOptions): Promise<NormalizerResult> {
   const normalized: NormalizedJob[] = []
   let skippedCount = 0
   const seenFingerprints = new Set<string>()
@@ -116,7 +123,7 @@ export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult>
       const descriptionText = sanitizeText(listing.description_text)
 
       // Extract benefits from description using zero-shot classification
-      const benefits = await extractBenefits(descriptionText)
+      const benefits = options?.skipBenefits ? undefined : await extractBenefits(descriptionText)
 
       // Prepare search text for tsvector population at DB insert time
       const searchText = [title, company, descriptionText].filter(Boolean).join(' ')

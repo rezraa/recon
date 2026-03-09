@@ -1,0 +1,8 @@
+# Local dev override — exposes DB and Redis ports to localhost
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+  redis:
+    ports:
+      - "6379:6379"

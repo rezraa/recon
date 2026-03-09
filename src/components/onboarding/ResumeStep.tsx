@@ -48,8 +48,9 @@ export function ResumeStep({ onValidChange }: StepProps) {
   const validateAndUpload = useCallback((file: File) => {
     setClientError(null)
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setClientError('Please upload a PDF file')
+    const name = file.name.toLowerCase()
+    if (!name.endsWith('.pdf') && !name.endsWith('.docx')) {
+      setClientError('Please upload a PDF or DOCX file')
       return
     }
 
@@ -211,12 +212,12 @@ export function ResumeStep({ onValidChange }: StepProps) {
               <p className="text-sm text-muted-foreground">
                 Drop your resume here or click to browse
               </p>
-              <p className="text-xs text-muted-foreground">PDF files only, up to 5MB</p>
+              <p className="text-xs text-muted-foreground">PDF or DOCX, up to 5MB</p>
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf"
+              accept=".pdf,.docx"
               className="hidden"
               onChange={handleFileChange}
               data-testid="file-input"

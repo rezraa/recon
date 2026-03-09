@@ -74,7 +74,7 @@ describe('POST /api/resume — file upload edge cases', () => {
     const json = await response.json()
 
     expect(response.status).toBe(400)
-    expect(json.error.message).toBe('Please upload a PDF file')
+    expect(json.error.message).toBe('Please upload a PDF or DOCX file')
     expect(mockParseResume).not.toHaveBeenCalled()
   })
 

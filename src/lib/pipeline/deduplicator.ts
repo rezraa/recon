@@ -27,6 +27,7 @@ export async function deduplicate(
   const result: DedupResult = {
     new: [],
     updated: [],
+    updatedNeedScore: [],
     similar: [],
     duplicateCount: 0,
   }
@@ -77,6 +78,9 @@ export async function deduplicate(
       }
 
       result.updated.push(job)
+      if (record.matchScore === null) {
+        result.updatedNeedScore!.push(job)
+      }
       result.duplicateCount++
       continue
     }
@@ -191,6 +195,9 @@ export async function deduplicate(
         .where(eq(schema.jobsTable.id, record.id))
 
       result.updated.push(job)
+      if (bestMatch.record.matchScore === null) {
+        result.updatedNeedScore!.push(job)
+      }
       result.duplicateCount++
     } else if (bestMatch && bestMatch.confidence >= SIMILAR_THRESHOLD) {
       // Flag as similar

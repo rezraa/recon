@@ -122,7 +122,7 @@ describe('scoreJob', () => {
     expect(matchScore).toBeGreaterThanOrEqual(70)
     expect(matchScore).toBeLessThanOrEqual(100)
     expect(matchBreakdown.skills.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.skills.weight).toBe(0.40)
+    expect(matchBreakdown.skills.weight).toBe(0.45)
   })
 
   it('[P1] should produce a low match score when resume does not match job', async () => {
@@ -193,7 +193,7 @@ describe('scoreJob', () => {
     expect(matchBreakdown.skills.signals.semantic).toBeGreaterThan(0)
   })
 
-  it('[P1] should compute correct weighted average: 0.40*skills + 0.25*exp + 0.20*sen + 0.15*tech', async () => {
+  it('[P1] should compute correct weighted average: 0.45*skills + 0.15*exp + 0.15*sen + 0.25*tech', async () => {
     setupMocks({ highSimilarity: true })
 
     const job = createNormalizedJob()
@@ -202,10 +202,10 @@ describe('scoreJob', () => {
     const { matchScore, matchBreakdown } = await scoreJob(job, resume)
 
     const expected = Math.round(
-      matchBreakdown.skills.score * 0.40 +
-      matchBreakdown.experience.score * 0.25 +
-      matchBreakdown.seniority.score * 0.20 +
-      matchBreakdown.techStack.score * 0.15,
+      matchBreakdown.skills.score * 0.45 +
+      matchBreakdown.experience.score * 0.15 +
+      matchBreakdown.seniority.score * 0.15 +
+      matchBreakdown.techStack.score * 0.25,
     )
 
     expect(matchScore).toBe(expected)
@@ -235,10 +235,10 @@ describe('scoreJob', () => {
     const { matchBreakdown } = await scoreJob(job, resume)
 
     // Each axis has its own score, weight, and signals
-    expect(matchBreakdown.skills.weight).toBe(0.40)
-    expect(matchBreakdown.experience.weight).toBe(0.25)
-    expect(matchBreakdown.seniority.weight).toBe(0.20)
-    expect(matchBreakdown.techStack.weight).toBe(0.15)
+    expect(matchBreakdown.skills.weight).toBe(0.45)
+    expect(matchBreakdown.experience.weight).toBe(0.15)
+    expect(matchBreakdown.seniority.weight).toBe(0.15)
+    expect(matchBreakdown.techStack.weight).toBe(0.25)
 
     // Weights sum to 1.0
     const totalWeight =

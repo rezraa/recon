@@ -30,10 +30,12 @@ vi.mock('@/lib/db/client', () => ({
     const fromHandler = () => {
       // Return an array-like promise that also has .where() and .limit() for chaining
       const result = Promise.resolve([...mockSelectResult])
+      const whereResult = Promise.resolve([{ count: 0 }])
+      Object.assign(whereResult, {
+        limit: () => Promise.resolve([...mockSelectResult]),
+      })
       Object.assign(result, {
-        where: () => ({
-          limit: () => Promise.resolve([...mockSelectResult]),
-        }),
+        where: () => whereResult,
         limit: () => Promise.resolve([...mockSelectResult]),
       })
       return result

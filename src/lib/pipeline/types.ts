@@ -50,6 +50,8 @@ export interface DedupCandidate {
 export interface DedupResult {
   new: NormalizedJob[]
   updated: NormalizedJob[]
+  /** Subset of updated jobs that had no match_score — need scoring */
+  updatedNeedScore?: NormalizedJob[]
   similar: DedupCandidate[]
   duplicateCount: number
 }

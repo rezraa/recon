@@ -169,10 +169,10 @@ describe('Root Page - Feed', () => {
       }),
     )
     render(<Page />)
-    const button = screen.getByText('Run Discovery')
+    const button = screen.getByText('Run Discovery Now')
     fireEvent.click(button)
     await waitFor(() => {
-      expect(screen.getByText('Run Discovery')).toBeInTheDocument()
+      expect(screen.getByText('Run Discovery Now')).toBeInTheDocument()
     })
   })
 
@@ -181,9 +181,8 @@ describe('Root Page - Feed', () => {
       new Response('error', { status: 500 }),
     )
     render(<Page />)
-    // Use the header button (not the empty state one)
-    const buttons = screen.getAllByText('Run Discovery Now')
-    fireEvent.click(buttons[0])
+    const button = screen.getByText('Run Discovery Now')
+    fireEvent.click(button)
     await waitFor(() => {
       expect(screen.getByText('Failed to start discovery. Please try again.')).toBeInTheDocument()
     })

@@ -72,9 +72,14 @@ async function handleFileUpload(request: Request) {
     )
   }
 
-  if (file.type !== 'application/pdf') {
+  const ACCEPTED_TYPES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]
+
+  if (!ACCEPTED_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: { code: 400, message: 'Please upload a PDF file' } },
+      { error: { code: 400, message: 'Please upload a PDF or DOCX file' } },
       { status: 400 },
     )
   }
@@ -88,7 +93,7 @@ async function handleFileUpload(request: Request) {
     )
   }
 
-  const parsedData = await parseResume(buffer)
+  const parsedData = await parseResume(buffer, file.type)
 
   const resume = await upsertResume({
     fileName: file.name,

@@ -5,6 +5,8 @@ set -euo pipefail
 # Usage: ./run.sh        (start everything)
 #        ./run.sh stop    (tear down)
 
+DC="docker compose -f docker-compose.yml -f docker-compose.dev.yml"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -16,7 +18,7 @@ error() { echo -e "${RED}▸${NC} $1"; }
 
 if [ "${1:-}" = "stop" ]; then
   info "Stopping services..."
-  docker compose down
+  $DC down
   echo -e "${GREEN}Done.${NC}"
   exit 0
 fi
@@ -54,24 +56,26 @@ fi
 
 # 3. Start infrastructure (postgres + redis only, not the app container)
 info "Starting Postgres & Redis..."
-docker compose up -d postgres redis
+$DC up -d postgres redis
 
-# 4. Wait for healthy services
+# 4. Wait for healthy services (uses Docker healthcheck defined in docker-compose.yml)
 info "Waiting for databases to be ready..."
-timeout=30
-while [ $timeout -gt 0 ]; do
-  pg_ready=$(docker compose exec -T postgres pg_isready -U recon 2>/dev/null && echo "yes" || echo "no")
-  redis_ready=$(docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && echo "yes" || echo "no")
-  if [ "$pg_ready" = "yes" ] && [ "$redis_ready" = "yes" ]; then
+remaining=60
+while [ $remaining -gt 0 ]; do
+  pg_health=$($DC ps postgres --format '{{.Health}}' 2>/dev/null || echo "unknown")
+  redis_health=$($DC ps redis --format '{{.Health}}' 2>/dev/null || echo "unknown")
+  if [ "$pg_health" = "healthy" ] && [ "$redis_health" = "healthy" ]; then
     break
   fi
-  sleep 1
-  timeout=$((timeout - 1))
+  printf "."
+  sleep 2
+  remaining=$((remaining - 2))
 done
+echo ""
 
-if [ $timeout -eq 0 ]; then
-  error "Services failed to start within 30s"
-  docker compose logs postgres redis
+if [ $remaining -le 0 ]; then
+  error "Services failed to become healthy within 60s"
+  $DC logs --tail=20 postgres redis
   exit 1
 fi
 info "Databases ready"
@@ -86,9 +90,21 @@ fi
 info "Running database migrations..."
 pnpm drizzle-kit push 2>/dev/null || pnpm drizzle-kit migrate 2>/dev/null || warn "Migration command not available — skipping"
 
-# 7. Start dev server
+# 7. Start worker + dev server
+info "Starting BullMQ worker in background..."
+pnpm worker:dev &
+WORKER_PID=$!
+
+cleanup() {
+  info "Shutting down worker (PID $WORKER_PID)..."
+  kill "$WORKER_PID" 2>/dev/null
+  wait "$WORKER_PID" 2>/dev/null
+}
+trap cleanup EXIT INT TERM
+
 info "Starting Next.js dev server..."
 echo ""
 echo -e "  ${GREEN}Recon is running at${NC}  →  http://localhost:3000"
+echo -e "  ${GREEN}Worker PID${NC}           →  $WORKER_PID"
 echo ""
-exec pnpm dev
+pnpm dev

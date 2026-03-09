@@ -126,7 +126,7 @@ describe('POST /api/resume — file upload', () => {
     const body = await response.json()
 
     expect(response.status).toBe(400)
-    expect(body.error.message).toBe('Please upload a PDF file')
+    expect(body.error.message).toBe('Please upload a PDF or DOCX file')
     expect(mockParseResume).not.toHaveBeenCalled()
   })
 

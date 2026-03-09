@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { SOURCE_CONFIGS } from '@/lib/adapters/constants'
 import { getDb } from '@/lib/db/client'
 import * as schema from '@/lib/db/schema'
 import { createDiscoveryQueue } from '@/worker/queues'
@@ -7,8 +8,24 @@ import { createDiscoveryQueue } from '@/worker/queues'
 export async function POST() {
   const db = getDb()
 
-  // Load enabled sources
-  const allSources = await db.select().from(schema.sourcesTable)
+  // Load enabled sources — auto-seed open sources on first run
+  let allSources = await db.select().from(schema.sourcesTable)
+  if (allSources.length === 0) {
+    const openSources = Object.values(SOURCE_CONFIGS)
+      .filter((c) => c.type === 'open')
+      .map((c) => ({
+        name: c.name,
+        displayName: c.displayName,
+        type: c.type,
+        isEnabled: true,
+      }))
+    if (openSources.length > 0) {
+      allSources = await db
+        .insert(schema.sourcesTable)
+        .values(openSources)
+        .returning()
+    }
+  }
   const enabledSources = allSources.filter((s) => s.isEnabled)
 
   if (enabledSources.length === 0) {
