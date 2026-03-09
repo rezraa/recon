@@ -4,7 +4,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 [![Contributing](https://img.shields.io/badge/Contributing-Guide-brightgreen.svg)](CONTRIBUTING.md)
 [![Source Compliance](https://img.shields.io/badge/Source_Compliance-Standards-green.svg)](SOURCE-COMPLIANCE.md)
-[![Architected by: AI + HILT](https://img.shields.io/badge/Architected_by-AI_+_HILT-blueviolet.svg)](TECHNICAL.md#how-its-built)
+[![Architected by: AI + HITL](https://img.shields.io/badge/Architected_by-AI_+_HITL-blueviolet.svg)](TECHNICAL.md#how-its-built)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/rezraa)

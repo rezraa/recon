@@ -2,7 +2,7 @@
 
 ## How It's Built
 
-This project is architected and directed using an **Agentic AI + HILT (Human-In-The-Loop)** workflow. Every feature is planned, specced, and reviewed by a human architect, then implemented through structured AI-assisted development — a disciplined approach to building production-quality software with AI agents.
+This project is architected and directed using an **Agentic AI + HITL (Human-In-The-Loop)** workflow. Every feature is planned, specced, and reviewed by a human architect, then implemented through structured AI-assisted development — a disciplined approach to building production-quality software with AI agents.
 
 **What this means:**
 - All architecture decisions, product requirements, and UX design are human-driven
