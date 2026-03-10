@@ -32,6 +32,7 @@ export function createJob(overrides?: Partial<JobRecord>): JobRecord {
     reviewedAt: null,
     appliedAt: null,
     stageChangedAt: null,
+    country: 'US',
     isDismissed: false,
     createdAt: faker.date.recent(),
     updatedAt: faker.date.recent(),

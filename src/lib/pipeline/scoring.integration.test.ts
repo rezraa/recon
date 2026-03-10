@@ -62,6 +62,7 @@ function toNormalizedJob(labeled: LabeledJob): NormalizedJob {
     applyUrl: undefined,
     benefits: undefined,
     rawData: {},
+    country: 'US',
     fingerprint: 'test',
     searchText: '',
     sources: [],

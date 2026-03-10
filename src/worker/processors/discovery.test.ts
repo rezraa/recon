@@ -114,6 +114,7 @@ vi.mock('@/lib/pipeline/normalizer', () => ({
           applyUrl: undefined,
           benefits: undefined,
           rawData: {},
+          country: 'US',
           fingerprint: 'abc123',
           searchText: 'Software Engineer TestCo Build amazing things with React and Node.',
           sources: [{ name: 'remoteok', external_id: 'ext-1', fetched_at: '2026-03-09T00:00:00Z' }],

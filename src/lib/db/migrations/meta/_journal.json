@@ -43,6 +43,13 @@
       "when": 1773128504687,
       "tag": "0005_parallel_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773167295575,
+      "tag": "0006_add-country-column",
+      "breakpoints": true
     }
   ]
 }

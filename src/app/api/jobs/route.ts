@@ -1,8 +1,10 @@
-import { and, count, desc, eq, gte, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { getDb } from '@/lib/db/client'
 import { jobsTable } from '@/lib/db/schema'
+
+const DEFAULT_COUNTRIES = ['US', 'Unknown']
 
 const feedColumns = {
   id: jobsTable.id,
@@ -19,19 +21,31 @@ const feedColumns = {
   matchScore: jobsTable.matchScore,
   matchBreakdown: jobsTable.matchBreakdown,
   pipelineStage: jobsTable.pipelineStage,
+  country: jobsTable.country,
   discoveredAt: jobsTable.discoveredAt,
 } as const
 
-/** Compute dynamic threshold: 75th percentile of scored jobs */
-async function computeThreshold(db: ReturnType<typeof getDb>): Promise<number> {
+/** Compute dynamic threshold: 75th percentile of scored jobs within country filter */
+async function computeThreshold(
+  db: ReturnType<typeof getDb>,
+  baseConditions: ReturnType<typeof eq>[],
+): Promise<number> {
   const result = await db
     .select({
       p75: sql<number>`COALESCE(percentile_cont(0.75) WITHIN GROUP (ORDER BY ${jobsTable.matchScore}), 0)::int`,
     })
     .from(jobsTable)
-    .where(and(eq(jobsTable.isDismissed, false), gte(jobsTable.matchScore, 1)))
+    .where(and(...baseConditions, gte(jobsTable.matchScore, 1)))
 
   return result[0]?.p75 ?? 0
+}
+
+/** Parse countries query parameter. Returns null if "all" (no filter). */
+export function parseCountries(param: string | null): string[] | null {
+  if (!param) return DEFAULT_COUNTRIES
+  if (param.toLowerCase() === 'all') return null
+  const parsed = param.split(',').map((c) => c.trim()).filter(Boolean)
+  return parsed.length > 0 ? parsed : DEFAULT_COUNTRIES
 }
 
 export async function GET(request: NextRequest) {
@@ -39,26 +53,35 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Math.max(1, Number(searchParams.get('limit')) || 100), 200)
   const offset = Math.max(0, Number(searchParams.get('offset')) || 0)
   const showAll = searchParams.get('showAll') === 'true'
+  const countries = parseCountries(searchParams.get('countries'))
 
   try {
     const db = getDb()
 
-    let whereClause = eq(jobsTable.isDismissed, false)
+    // Build base conditions
+    const conditions = [eq(jobsTable.isDismissed, false)]
+
+    // Apply country filter (null = show all countries)
+    if (countries) {
+      conditions.push(inArray(jobsTable.country, countries))
+    }
+
+    let whereClause = and(...conditions)!
 
     let threshold: number | null = null
     if (!showAll) {
       try {
-        const p75 = await computeThreshold(db)
+        const p75 = await computeThreshold(db, conditions)
         if (p75 > 0) {
           // Only apply threshold if it gives at least 20 results
           const [{ count: aboveCount }] = await db
             .select({ count: count() })
             .from(jobsTable)
-            .where(and(eq(jobsTable.isDismissed, false), gte(jobsTable.matchScore, p75)))
+            .where(and(...conditions, gte(jobsTable.matchScore, p75)))
 
           if (Number(aboveCount) >= 20) {
             threshold = p75
-            whereClause = and(eq(jobsTable.isDismissed, false), gte(jobsTable.matchScore, threshold))!
+            whereClause = and(...conditions, gte(jobsTable.matchScore, threshold))!
           }
         }
       } catch {

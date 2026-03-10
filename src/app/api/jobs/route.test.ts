@@ -33,7 +33,7 @@ vi.mock('@/lib/db/client', () => ({
 
 // ─── Import after mocks ─────────────────────────────────────────────────────
 
-import { GET } from './route'
+import { GET, parseCountries } from './route'
 
 function createRequest(params?: Record<string, string>): NextRequest {
   const searchParams = new URLSearchParams(params)
@@ -128,6 +128,49 @@ describe('GET /api/jobs', () => {
     expect(body.data).toHaveProperty('jobs')
   })
 
+  it('[P1] should apply default US + Unknown country filter', async () => {
+    // Default request (no countries param) should still return jobs
+    // The route adds inArray(country, ['US', 'Unknown']) to WHERE clause
+    const response = await GET(createRequest())
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('[P1] should accept custom countries parameter', async () => {
+    const response = await GET(createRequest({ countries: 'US,GB,IN' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('[P1] should bypass country filter with countries=all', async () => {
+    const response = await GET(createRequest({ countries: 'all' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('[P1] should handle countries=all case-insensitively', async () => {
+    const response = await GET(createRequest({ countries: 'ALL' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('[P1] should treat empty countries param as default filter', async () => {
+    // ?countries= (empty string) should fall back to default, not return 0 results
+    const response = await GET(createRequest({ countries: '' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
   it('[P1] should return 500 with error message on database failure', async () => {
     const { getDb } = await import('@/lib/db/client')
     vi.mocked(getDb).mockImplementationOnce(() => {
@@ -139,5 +182,39 @@ describe('GET /api/jobs', () => {
 
     expect(response.status).toBe(500)
     expect(body.error).toBe('Failed to fetch jobs')
+  })
+})
+
+describe('parseCountries', () => {
+  it('should return default countries when param is null', () => {
+    expect(parseCountries(null)).toEqual(['US', 'Unknown'])
+  })
+
+  it('should return null for "all" (bypass filter)', () => {
+    expect(parseCountries('all')).toBeNull()
+  })
+
+  it('should return null for "ALL" (case-insensitive)', () => {
+    expect(parseCountries('ALL')).toBeNull()
+  })
+
+  it('should parse comma-separated country codes', () => {
+    expect(parseCountries('US,GB,IN')).toEqual(['US', 'GB', 'IN'])
+  })
+
+  it('should trim whitespace from country codes', () => {
+    expect(parseCountries('US , GB , IN')).toEqual(['US', 'GB', 'IN'])
+  })
+
+  it('should return default countries for empty string', () => {
+    expect(parseCountries('')).toEqual(['US', 'Unknown'])
+  })
+
+  it('should return default countries for whitespace-only', () => {
+    expect(parseCountries('  ,  , ')).toEqual(['US', 'Unknown'])
+  })
+
+  it('should handle single country code', () => {
+    expect(parseCountries('IN')).toEqual(['IN'])
   })
 })

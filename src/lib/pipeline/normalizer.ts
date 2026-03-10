@@ -4,6 +4,7 @@ import { inferRemote } from '@/lib/adapters/utils'
 import { getZeroShotClassifier } from '@/lib/ai/models'
 import { sanitizeHtml } from '@/lib/utils'
 
+import { extractCountry } from './location'
 import type { NormalizedJob, NormalizerResult, RawJobListing, SourceAttribution } from './types'
 
 // ─── Options ──────────────────────────────────────────────────────────────
@@ -142,6 +143,8 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
         ? undefined
         : listing.salary_max
 
+      const country = extractCountry(location)
+
       const job: NormalizedJob = {
         externalId: listing.external_id,
         sourceName: listing.source_name,
@@ -153,6 +156,7 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
         salaryMax,
         location: location ?? undefined,
         isRemote,
+        country,
         sourceUrl: listing.source_url,
         applyUrl: listing.apply_url,
         benefits,

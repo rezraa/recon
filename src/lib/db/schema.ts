@@ -70,6 +70,7 @@ export const jobsTable = pgTable(
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     appliedAt: timestamp('applied_at', { withTimezone: true }),
     stageChangedAt: timestamp('stage_changed_at', { withTimezone: true }),
+    country: text('country'),
     isDismissed: boolean('is_dismissed').default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -81,6 +82,7 @@ export const jobsTable = pgTable(
     index('idx_jobs_pipeline_stage').on(table.pipelineStage),
     index('idx_jobs_search_vector').using('gin', sql`${table.searchVector}`),
     index('idx_jobs_embedding').using('hnsw', sql`${table.embedding} vector_cosine_ops`),
+    index('idx_jobs_country').on(table.country),
   ],
 )
 

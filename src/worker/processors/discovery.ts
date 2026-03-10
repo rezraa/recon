@@ -88,6 +88,7 @@ async function insertNewJobs(jobs: NormalizedJob[]): Promise<void> {
         salaryMin: job.salaryMin ?? null,
         salaryMax: job.salaryMax ?? null,
         location: job.location ?? null,
+        country: job.country,
         isRemote: job.isRemote ?? false,
         sourceUrl: job.sourceUrl,
         applyUrl: job.applyUrl ?? null,

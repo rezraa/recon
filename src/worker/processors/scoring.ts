@@ -67,6 +67,7 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           applyUrl: undefined,
           benefits: undefined,
           rawData: {},
+          country: dbJob.country ?? 'Unknown',
           fingerprint: '',
           searchText: '',
           sources: [],

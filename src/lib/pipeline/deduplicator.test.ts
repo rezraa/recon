@@ -30,6 +30,7 @@ function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob 
     applyUrl: undefined,
     benefits: undefined,
     rawData: { original: true },
+    country: 'US',
     fingerprint: 'abc123',
     searchText: 'Software Engineer Google Build things.',
     sources: [{ name: 'remoteok', external_id: 'ext-123', fetched_at: '2026-03-08T00:00:00Z' }],

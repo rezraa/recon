@@ -234,6 +234,7 @@ function dbRecordToNormalizedJob(record: {
   benefits: unknown
   rawData: unknown
   sources: unknown
+  country: string | null
   dedupConfidence: number | null
   pipelineStage: string | null
   discoveredAt: Date | null
@@ -258,6 +259,7 @@ function dbRecordToNormalizedJob(record: {
     rawData: (record.rawData as Record<string, unknown>) ?? {},
     fingerprint: generateFingerprint(title, company, record.location ?? ''),
     searchText: [title, company, descriptionText].filter(Boolean).join(' '),
+    country: record.country ?? 'Unknown',
     sources: (record.sources as SourceAttribution[]) ?? [],
     discoveredAt: record.discoveredAt ?? new Date(),
     pipelineStage: record.pipelineStage ?? 'discovered',

@@ -28,6 +28,7 @@ export interface NormalizedJob {
   sources: SourceAttribution[]
   discoveredAt: Date
   pipelineStage: string
+  country: string       // ISO 3166-1 alpha-2 code or "Unknown"
   embedding?: number[]  // 384-dim pgvector embedding, populated after embed step
 }
 

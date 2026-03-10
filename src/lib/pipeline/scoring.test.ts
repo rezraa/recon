@@ -62,6 +62,7 @@ function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob 
     applyUrl: undefined,
     benefits: undefined,
     rawData: {},
+    country: 'US',
     fingerprint: 'abc123',
     searchText: '',
     sources: [],

@@ -258,6 +258,36 @@ describe('normalize', () => {
     })
   })
 
+  describe('country extraction', () => {
+    it('[P1] should extract country from US location', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ location: 'San Francisco, CA' }),
+      ])
+      expect(normalized[0].country).toBe('US')
+    })
+
+    it('[P1] should extract country from international location', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ location: 'Bangalore, India' }),
+      ])
+      expect(normalized[0].country).toBe('IN')
+    })
+
+    it('[P1] should default Remote to US', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ location: 'Remote' }),
+      ])
+      expect(normalized[0].country).toBe('US')
+    })
+
+    it('[P1] should set Unknown for null location', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ location: undefined }),
+      ])
+      expect(normalized[0].country).toBe('Unknown')
+    })
+  })
+
   describe('searchText population', () => {
     it('[P1] should populate searchText from title + company + description', async () => {
       const { normalized } = await normalize([createRawListing()])
