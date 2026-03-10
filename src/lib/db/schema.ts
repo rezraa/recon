@@ -143,6 +143,28 @@ export const preferencesTable = pgTable('preferences', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 
+// ─── Company Intel Table ─────────────────────────────────────────────────────
+
+export const companyIntelTable = pgTable(
+  'company_intel',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyName: text('company_name').notNull(),
+    glassdoorRating: text('glassdoor_rating'),
+    companySize: text('company_size'),
+    funding: text('funding'),
+    techStack: text('tech_stack'),
+    growth: text('growth'),
+    recentNews: text('recent_news'),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('idx_company_intel_company_name').on(table.companyName),
+  ],
+)
+
 // ─── Drizzle-Zod Schemas ─────────────────────────────────────────────────────
 
 export const insertJobSchema = createInsertSchema(jobsTable)
@@ -159,3 +181,6 @@ export const selectResumeSchema = createSelectSchema(resumesTable)
 
 export const insertPreferencesSchema = createInsertSchema(preferencesTable)
 export const selectPreferencesSchema = createSelectSchema(preferencesTable)
+
+export const insertCompanyIntelSchema = createInsertSchema(companyIntelTable)
+export const selectCompanyIntelSchema = createSelectSchema(companyIntelTable)

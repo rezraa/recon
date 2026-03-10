@@ -36,6 +36,13 @@
       "when": 1773302400000,
       "tag": "0004_salary_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773128504687,
+      "tag": "0005_parallel_mindworm",
+      "breakpoints": true
     }
   ]
 }

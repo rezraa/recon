@@ -12,15 +12,15 @@ vi.mock('@/lib/ai/embeddings', () => ({
   cosineSimilarity: vi.fn().mockReturnValue(0.4),
 }))
 
-import { getLLMModel, isModelAvailable } from '@/lib/ai/llm'
 import { cosineSimilarity } from '@/lib/ai/embeddings'
+import { getLLMModel, isModelAvailable } from '@/lib/ai/llm'
 import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
 import {
   buildNudgePrompt,
-  computeSkills,
   computeSalary,
+  computeSkills,
   computeTechStack,
   parseNudgeResponse,
   scoreJob,

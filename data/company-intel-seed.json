@@ -1,0 +1,452 @@
+{
+  "Google": {
+    "glassdoorRating": "4.3 / 5.0",
+    "companySize": "180,000+ employees",
+    "funding": "Public",
+    "techStack": "Python, Go, Java, C++, Kubernetes, TensorFlow",
+    "growth": "Revenue $307B (2023)",
+    "recentNews": "launched Gemini AI models",
+    "seeded_at": "2026-03-01"
+  },
+  "Apple": {
+    "glassdoorRating": "4.2 / 5.0",
+    "companySize": "164,000+ employees",
+    "funding": "Public",
+    "techStack": "Swift, Objective-C, Python, Kubernetes",
+    "growth": "Revenue $383B (2023)",
+    "recentNews": "announced Apple Intelligence",
+    "seeded_at": "2026-03-01"
+  },
+  "Amazon": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "1,500,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, AWS, React, TypeScript",
+    "growth": "Revenue $575B (2023)",
+    "recentNews": "launched Amazon Q developer assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "Meta": {
+    "glassdoorRating": "4.1 / 5.0",
+    "companySize": "67,000+ employees",
+    "funding": "Public",
+    "techStack": "React, Python, C++, Hack, PyTorch",
+    "growth": "Revenue $135B (2023)",
+    "recentNews": "released Llama 3 open-source models",
+    "seeded_at": "2026-03-01"
+  },
+  "Netflix": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "13,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, React, Node.js, AWS",
+    "growth": "Revenue $33.7B (2023)",
+    "recentNews": "announced ad-supported tier expansion",
+    "seeded_at": "2026-03-01"
+  },
+  "Microsoft": {
+    "glassdoorRating": "4.2 / 5.0",
+    "companySize": "221,000+ employees",
+    "funding": "Public",
+    "techStack": "C#, TypeScript, Python, Azure, React",
+    "growth": "Revenue $212B (2023)",
+    "recentNews": "launched Copilot AI across products",
+    "seeded_at": "2026-03-01"
+  },
+  "Stripe": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "8,000+ employees",
+    "funding": "$9.81B total funding",
+    "techStack": "Ruby, Scala, Go, React, TypeScript",
+    "growth": "Revenue $5.1B (2023)",
+    "recentNews": "raised $6.5B at $65B valuation",
+    "seeded_at": "2026-03-01"
+  },
+  "Vercel": {
+    "glassdoorRating": "4.4 / 5.0",
+    "companySize": "500-1,000 employees",
+    "funding": "$863M (6 rounds)",
+    "techStack": "React, Next.js, TypeScript, Go, Rust",
+    "growth": "ARR growing rapidly",
+    "recentNews": "launched v0 AI code generation",
+    "seeded_at": "2026-03-01"
+  },
+  "Datadog": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "5,000+ employees",
+    "funding": "Public",
+    "techStack": "Go, Python, React, TypeScript, Kafka",
+    "growth": "Revenue $2.13B (2023)",
+    "recentNews": "announced AI-powered observability features",
+    "seeded_at": "2026-03-01"
+  },
+  "Shopify": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "11,600+ employees",
+    "funding": "Public",
+    "techStack": "Ruby, React, TypeScript, Go, Rust",
+    "growth": "Revenue $7.06B (2023)",
+    "recentNews": "launched Shopify Magic AI tools",
+    "seeded_at": "2026-03-01"
+  },
+  "Databricks": {
+    "glassdoorRating": "4.2 / 5.0",
+    "companySize": "5,000+ employees",
+    "funding": "$4.1B total funding",
+    "techStack": "Scala, Python, Spark, React, TypeScript",
+    "growth": "ARR $1.6B (2023)",
+    "recentNews": "acquired MosaicML for generative AI",
+    "seeded_at": "2026-03-01"
+  },
+  "Snowflake": {
+    "glassdoorRating": "4.1 / 5.0",
+    "companySize": "5,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, React, Snowflake, AWS",
+    "growth": "Revenue $2.81B (2024)",
+    "recentNews": "launched Cortex AI for data intelligence",
+    "seeded_at": "2026-03-01"
+  },
+  "Salesforce": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "73,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, JavaScript, React, Python, Heroku",
+    "growth": "Revenue $34.9B (2024)",
+    "recentNews": "launched Einstein Copilot AI assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "IBM": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "280,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, Go, React, Kubernetes",
+    "growth": "Revenue $61.9B (2023)",
+    "recentNews": "announced watsonx AI platform",
+    "seeded_at": "2026-03-01"
+  },
+  "Oracle": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "164,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, React, Oracle Cloud",
+    "growth": "Revenue $53B (2024)",
+    "recentNews": "announced OCI generative AI services",
+    "seeded_at": "2026-03-01"
+  },
+  "Uber": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "32,000+ employees",
+    "funding": "Public",
+    "techStack": "Go, Java, Python, React, Kafka",
+    "growth": "Revenue $37.3B (2023)",
+    "recentNews": "announced autonomous vehicle partnerships",
+    "seeded_at": "2026-03-01"
+  },
+  "Airbnb": {
+    "glassdoorRating": "4.1 / 5.0",
+    "companySize": "6,900+ employees",
+    "funding": "Public",
+    "techStack": "Ruby, React, TypeScript, Java, Kubernetes",
+    "growth": "Revenue $10.5B (2023)",
+    "recentNews": "launched AI-powered trip planning features",
+    "seeded_at": "2026-03-01"
+  },
+  "Figma": {
+    "glassdoorRating": "4.4 / 5.0",
+    "companySize": "1,500+ employees",
+    "funding": "$600M total funding",
+    "techStack": "TypeScript, React, C++, WebAssembly, Rust",
+    "growth": "ARR $600M+ (2023)",
+    "recentNews": "launched Figma AI design generation",
+    "seeded_at": "2026-03-01"
+  },
+  "Cloudflare": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "3,800+ employees",
+    "funding": "Public",
+    "techStack": "Go, Rust, TypeScript, React, Nginx",
+    "growth": "Revenue $1.56B (2023)",
+    "recentNews": "launched Workers AI at the edge",
+    "seeded_at": "2026-03-01"
+  },
+  "Twilio": {
+    "glassdoorRating": "3.7 / 5.0",
+    "companySize": "5,400+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, React, TypeScript, AWS",
+    "growth": "Revenue $4.15B (2023)",
+    "recentNews": "announced CustomerAI for personalization",
+    "seeded_at": "2026-03-01"
+  },
+  "Palantir": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "3,800+ employees",
+    "funding": "Public",
+    "techStack": "Java, TypeScript, Python, React, Spark",
+    "growth": "Revenue $2.23B (2023)",
+    "recentNews": "launched AIP platform for enterprise AI",
+    "seeded_at": "2026-03-01"
+  },
+  "Confluent": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "3,200+ employees",
+    "funding": "Public",
+    "techStack": "Java, Kafka, Go, React, Kubernetes",
+    "growth": "Revenue $776M (2023)",
+    "recentNews": "announced Flink integration for stream processing",
+    "seeded_at": "2026-03-01"
+  },
+  "HashiCorp": {
+    "glassdoorRating": "3.7 / 5.0",
+    "companySize": "2,100+ employees",
+    "funding": "Public",
+    "techStack": "Go, React, TypeScript, Terraform, Vault",
+    "growth": "Revenue $583M (2024)",
+    "recentNews": "acquired by IBM for $6.4B",
+    "seeded_at": "2026-03-01"
+  },
+  "MongoDB": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "4,600+ employees",
+    "funding": "Public",
+    "techStack": "C++, Go, Java, React, TypeScript, MongoDB",
+    "growth": "Revenue $1.68B (2024)",
+    "recentNews": "launched Atlas Vector Search for AI",
+    "seeded_at": "2026-03-01"
+  },
+  "Elastic": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "3,200+ employees",
+    "funding": "Public",
+    "techStack": "Java, TypeScript, React, Elasticsearch, Go",
+    "growth": "Revenue $1.27B (2024)",
+    "recentNews": "announced ESRE for AI search",
+    "seeded_at": "2026-03-01"
+  },
+  "Supabase": {
+    "glassdoorRating": "4.3 / 5.0",
+    "companySize": "200-500 employees",
+    "funding": "$116M (Series B)",
+    "techStack": "TypeScript, React, PostgreSQL, Go, Elixir",
+    "growth": "Growing rapidly in developer tools",
+    "recentNews": "launched AI vector embeddings support",
+    "seeded_at": "2026-03-01"
+  },
+  "Linear": {
+    "glassdoorRating": "4.5 / 5.0",
+    "companySize": "100-200 employees",
+    "funding": "$52M (Series B)",
+    "techStack": "TypeScript, React, Node.js, PostgreSQL",
+    "growth": "Rapid adoption among engineering teams",
+    "recentNews": "announced Triage AI for issue management",
+    "seeded_at": "2026-03-01"
+  },
+  "Notion": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "500-1,000 employees",
+    "funding": "$343M total funding",
+    "techStack": "TypeScript, React, Kotlin, PostgreSQL",
+    "growth": "Valued at $10B",
+    "recentNews": "launched Notion AI writing assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "Canva": {
+    "glassdoorRating": "4.1 / 5.0",
+    "companySize": "4,000+ employees",
+    "funding": "$572M total funding",
+    "techStack": "Java, TypeScript, React, Python, AWS",
+    "growth": "ARR $2.1B (2024)",
+    "recentNews": "launched Magic Studio AI design suite",
+    "seeded_at": "2026-03-01"
+  },
+  "GitLab": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "2,100+ employees",
+    "funding": "Public",
+    "techStack": "Ruby, Go, Vue, PostgreSQL, Kubernetes",
+    "growth": "Revenue $580M (2024)",
+    "recentNews": "launched GitLab Duo AI coding assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "Atlassian": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "12,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, TypeScript, React, Python, AWS",
+    "growth": "Revenue $4.4B (2024)",
+    "recentNews": "launched Atlassian Intelligence AI features",
+    "seeded_at": "2026-03-01"
+  },
+  "Coinbase": {
+    "glassdoorRating": "3.6 / 5.0",
+    "companySize": "3,400+ employees",
+    "funding": "Public",
+    "techStack": "Go, Ruby, React, TypeScript, PostgreSQL",
+    "growth": "Revenue $3.1B (2023)",
+    "recentNews": "launched Base L2 blockchain network",
+    "seeded_at": "2026-03-01"
+  },
+  "Block": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "12,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Kotlin, Ruby, React, TypeScript",
+    "growth": "Revenue $21.9B (2023)",
+    "recentNews": "announced Bitcoin mining hardware division",
+    "seeded_at": "2026-03-01"
+  },
+  "Plaid": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "1,500+ employees",
+    "funding": "$734M total funding",
+    "techStack": "Python, Go, TypeScript, React, Kafka",
+    "growth": "Valued at $13.4B",
+    "recentNews": "launched Plaid Layer for identity verification",
+    "seeded_at": "2026-03-01"
+  },
+  "Ramp": {
+    "glassdoorRating": "4.3 / 5.0",
+    "companySize": "800+ employees",
+    "funding": "$1.6B total funding",
+    "techStack": "Python, TypeScript, React, PostgreSQL, AWS",
+    "growth": "Revenue quadrupled YoY (2023)",
+    "recentNews": "launched Ramp Intelligence AI expense management",
+    "seeded_at": "2026-03-01"
+  },
+  "Rippling": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "2,800+ employees",
+    "funding": "$1.2B total funding",
+    "techStack": "Python, React, TypeScript, Go, PostgreSQL",
+    "growth": "ARR $350M+ (2023)",
+    "recentNews": "announced global payroll expansion",
+    "seeded_at": "2026-03-01"
+  },
+  "Scale AI": {
+    "glassdoorRating": "3.6 / 5.0",
+    "companySize": "1,500+ employees",
+    "funding": "$1.6B total funding",
+    "techStack": "Python, TypeScript, React, Go, Kubernetes",
+    "growth": "Valued at $14B (2024)",
+    "recentNews": "announced government AI data partnerships",
+    "seeded_at": "2026-03-01"
+  },
+  "Anthropic": {
+    "glassdoorRating": "4.3 / 5.0",
+    "companySize": "1,000+ employees",
+    "funding": "$7.6B total funding",
+    "techStack": "Python, TypeScript, React, Rust, Kubernetes",
+    "growth": "ARR $850M+ (2024)",
+    "recentNews": "launched Claude 3 model family",
+    "seeded_at": "2026-03-01"
+  },
+  "OpenAI": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "1,700+ employees",
+    "funding": "$11.3B total funding",
+    "techStack": "Python, React, TypeScript, Kubernetes, Rust",
+    "growth": "ARR $2B+ (2024)",
+    "recentNews": "launched GPT-4o multimodal model",
+    "seeded_at": "2026-03-01"
+  },
+  "Spotify": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "9,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, Python, React, TypeScript, GCP",
+    "growth": "Revenue $14.7B (2023)",
+    "recentNews": "launched AI DJ and playlist features",
+    "seeded_at": "2026-03-01"
+  },
+  "Lyft": {
+    "glassdoorRating": "3.7 / 5.0",
+    "companySize": "4,000+ employees",
+    "funding": "Public",
+    "techStack": "Python, Go, React, TypeScript, AWS",
+    "growth": "Revenue $4.4B (2023)",
+    "recentNews": "announced autonomous vehicle partnerships",
+    "seeded_at": "2026-03-01"
+  },
+  "DoorDash": {
+    "glassdoorRating": "3.7 / 5.0",
+    "companySize": "19,000+ employees",
+    "funding": "Public",
+    "techStack": "Kotlin, Python, React, TypeScript, AWS",
+    "growth": "Revenue $8.6B (2023)",
+    "recentNews": "launched AI-powered merchant tools",
+    "seeded_at": "2026-03-01"
+  },
+  "Instacart": {
+    "glassdoorRating": "3.5 / 5.0",
+    "companySize": "3,500+ employees",
+    "funding": "Public",
+    "techStack": "Python, React, TypeScript, Go, PostgreSQL",
+    "growth": "Revenue $3.04B (2023)",
+    "recentNews": "launched AI-powered shopping assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "Pinterest": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "5,500+ employees",
+    "funding": "Public",
+    "techStack": "Python, Java, React, TypeScript, AWS",
+    "growth": "Revenue $3.1B (2023)",
+    "recentNews": "launched AI-powered shopping recommendations",
+    "seeded_at": "2026-03-01"
+  },
+  "Snap": {
+    "glassdoorRating": "3.6 / 5.0",
+    "companySize": "5,300+ employees",
+    "funding": "Public",
+    "techStack": "Python, C++, React, TypeScript, GCP",
+    "growth": "Revenue $4.6B (2023)",
+    "recentNews": "announced My AI chatbot expansion",
+    "seeded_at": "2026-03-01"
+  },
+  "Reddit": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "2,000+ employees",
+    "funding": "Public",
+    "techStack": "Python, Go, React, TypeScript, PostgreSQL",
+    "growth": "Revenue $804M (2023)",
+    "recentNews": "launched data licensing for AI training",
+    "seeded_at": "2026-03-01"
+  },
+  "Dropbox": {
+    "glassdoorRating": "3.9 / 5.0",
+    "companySize": "2,800+ employees",
+    "funding": "Public",
+    "techStack": "Python, Rust, React, TypeScript, Go",
+    "growth": "Revenue $2.5B (2023)",
+    "recentNews": "launched Dropbox Dash AI search tool",
+    "seeded_at": "2026-03-01"
+  },
+  "Okta": {
+    "glassdoorRating": "3.7 / 5.0",
+    "companySize": "6,000+ employees",
+    "funding": "Public",
+    "techStack": "Java, React, TypeScript, Go, AWS",
+    "growth": "Revenue $2.26B (2024)",
+    "recentNews": "announced identity security improvements post-breach",
+    "seeded_at": "2026-03-01"
+  },
+  "CrowdStrike": {
+    "glassdoorRating": "3.8 / 5.0",
+    "companySize": "8,400+ employees",
+    "funding": "Public",
+    "techStack": "Go, Python, React, TypeScript, AWS",
+    "growth": "Revenue $3.06B (2024)",
+    "recentNews": "launched Charlotte AI security assistant",
+    "seeded_at": "2026-03-01"
+  },
+  "Palo Alto Networks": {
+    "glassdoorRating": "4.0 / 5.0",
+    "companySize": "15,000+ employees",
+    "funding": "Public",
+    "techStack": "Python, Go, React, TypeScript, GCP",
+    "growth": "Revenue $6.89B (2024)",
+    "recentNews": "announced platformization strategy for cybersecurity",
+    "seeded_at": "2026-03-01"
+  }
+}
