@@ -33,6 +33,7 @@ export async function GET() {
       data: {
         id: resume.id,
         fileName: resume.fileName,
+        skills: resume.skills,
         uploadedAt: resume.uploadedAt,
       },
     })

@@ -134,6 +134,14 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
         fetched_at: new Date().toISOString(),
       }
 
+      // Salary validation: cap suspect values as undefined
+      const salaryMin = listing.salary_min != null && listing.salary_min > 500_000
+        ? undefined
+        : listing.salary_min
+      const salaryMax = listing.salary_max != null && listing.salary_max > 1_000_000
+        ? undefined
+        : listing.salary_max
+
       const job: NormalizedJob = {
         externalId: listing.external_id,
         sourceName: listing.source_name,
@@ -141,8 +149,8 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
         company,
         descriptionHtml: listing.description_html,
         descriptionText,
-        salaryMin: listing.salary_min,
-        salaryMax: listing.salary_max,
+        salaryMin,
+        salaryMax,
         location: location ?? undefined,
         isRemote,
         sourceUrl: listing.source_url,

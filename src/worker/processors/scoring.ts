@@ -1,0 +1,96 @@
+import type { Job } from 'bullmq'
+import { and, eq } from 'drizzle-orm'
+
+import { getDb } from '@/lib/db/client'
+import { getResume } from '@/lib/db/queries/resume'
+import * as schema from '@/lib/db/schema'
+import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
+import { scoreJob } from '@/lib/pipeline/scoring'
+import type { NormalizedJob } from '@/lib/pipeline/types'
+
+import { log } from '../logger'
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface RescoreJobData {
+  resumeId: string
+}
+
+// ─── Rescore Processor ──────────────────────────────────────────────────────
+
+const BATCH_SIZE = 5
+
+export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> {
+  log('info', 'rescore.start', { resumeId: job.data.resumeId })
+
+  const resumeRow = await getResume()
+  if (!resumeRow) {
+    throw new Error('No resume found — cannot rescore')
+  }
+
+  const skills = Array.isArray(resumeRow.skills) ? resumeRow.skills as string[] : []
+  const experience = Array.isArray(resumeRow.experience)
+    ? (resumeRow.experience as Array<{ title: string; company: string; years: number | null }>)
+    : []
+  const jobTitles = experience.map((e) => e.title).filter(Boolean)
+
+  const resume: ParsedResume = { skills, experience, jobTitles }
+
+  const db = getDb()
+  const allJobs = await db.select().from(schema.jobsTable)
+
+  log('info', 'rescore.jobs-found', { count: allJobs.length })
+
+  for (let i = 0; i < allJobs.length; i += BATCH_SIZE) {
+    const batch = allJobs.slice(i, i + BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map(async (dbJob) => {
+        const normalizedJob: NormalizedJob = {
+          externalId: dbJob.externalId,
+          sourceName: dbJob.sourceName,
+          title: dbJob.title ?? '',
+          company: dbJob.company ?? '',
+          descriptionText: dbJob.descriptionText ?? '',
+          descriptionHtml: dbJob.descriptionHtml ?? undefined,
+          salaryMin: dbJob.salaryMin ?? undefined,
+          salaryMax: dbJob.salaryMax ?? undefined,
+          location: dbJob.location ?? undefined,
+          isRemote: dbJob.isRemote ?? undefined,
+          sourceUrl: dbJob.sourceUrl ?? '',
+          applyUrl: undefined,
+          benefits: undefined,
+          rawData: {},
+          fingerprint: '',
+          searchText: '',
+          sources: [],
+          discoveredAt: dbJob.discoveredAt ?? new Date(),
+          pipelineStage: dbJob.pipelineStage ?? 'discovered',
+        }
+
+        const { matchScore, matchBreakdown } = await scoreJob(normalizedJob, resume)
+
+        await db
+          .update(schema.jobsTable)
+          .set({ matchScore, matchBreakdown })
+          .where(
+            and(
+              eq(schema.jobsTable.sourceName, dbJob.sourceName),
+              eq(schema.jobsTable.externalId, dbJob.externalId),
+            ),
+          )
+      }),
+    )
+
+    const failures = results.filter((r) => r.status === 'rejected')
+    for (const f of failures) {
+      log('error', 'rescore.job-failed', {
+        error: (f as PromiseRejectedResult).reason?.message ?? String((f as PromiseRejectedResult).reason),
+      })
+    }
+
+    const progress = Math.round(((i + batch.length) / allJobs.length) * 100)
+    await job.updateProgress(progress)
+  }
+
+  log('info', 'rescore.complete', { scored: allJobs.length })
+}

@@ -1,5 +1,7 @@
 'use client'
 
+import { Settings } from 'lucide-react'
+import Link from 'next/link'
 import { useCallback, useRef, useState } from 'react'
 
 import { DiscoveryBanner } from '@/components/DiscoveryBanner'
@@ -54,7 +56,15 @@ export default function Home() {
     redirectTo: '/onboarding',
     when: 'missing',
   })
-  const { jobs, total, isLoading: isJobsLoading, mutate } = useJobs()
+  const [showAll, setShowAll] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('recon:showAllJobs') === 'true'
+    }
+    return false
+  })
+  const { jobs, total, isLoading: isJobsLoading, mutate } = useJobs(
+    showAll ? { showAll: true } : undefined,
+  )
   const [runId, setRunId] = useState<string | null>(null)
   const [discoveryError, setDiscoveryError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
@@ -105,15 +115,22 @@ export default function Home() {
             {total > 0 ? `${total} job${total !== 1 ? 's' : ''} discovered` : 'Job intelligence feed'}
           </p>
         </div>
-        {!isEmpty && (
-          <Button
-            onClick={handleRunDiscovery}
-            disabled={isStarting || runId !== null}
-            size="sm"
-          >
-            {isStarting ? 'Starting...' : 'Run Discovery'}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isEmpty && (
+            <Button
+              onClick={handleRunDiscovery}
+              disabled={isStarting || runId !== null}
+              size="sm"
+            >
+              {isStarting ? 'Starting...' : 'Run Discovery'}
+            </Button>
+          )}
+          <Link href="/settings">
+            <Button variant="ghost" size="sm" aria-label="Settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {discoveryError && (
@@ -123,6 +140,23 @@ export default function Home() {
       <div className="mb-4">
         <DiscoveryBanner runId={runId} onComplete={handleDiscoveryComplete} />
       </div>
+
+      {!isEmpty && !isLoading && (
+        <div className="mb-4 flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => {
+                setShowAll(e.target.checked)
+                localStorage.setItem('recon:showAllJobs', String(e.target.checked))
+              }}
+              className="rounded"
+            />
+            Show all jobs
+          </label>
+        </div>
+      )}
 
       {isLoading && (
         <div className="space-y-3">

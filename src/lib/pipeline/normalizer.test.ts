@@ -267,6 +267,62 @@ describe('normalize', () => {
     })
   })
 
+  describe('salary validation', () => {
+    it('[P1] should preserve valid salary values', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: 150000, salary_max: 250000 }),
+      ])
+      expect(normalized[0].salaryMin).toBe(150000)
+      expect(normalized[0].salaryMax).toBe(250000)
+    })
+
+    it('[P1] should cap salaryMin above $500k as undefined (suspect data)', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: 1676000, salary_max: 200000 }),
+      ])
+      expect(normalized[0].salaryMin).toBeUndefined()
+      expect(normalized[0].salaryMax).toBe(200000)
+    })
+
+    it('[P1] should cap salaryMax above $1M as undefined (suspect data)', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: 150000, salary_max: 3422000 }),
+      ])
+      expect(normalized[0].salaryMin).toBe(150000)
+      expect(normalized[0].salaryMax).toBeUndefined()
+    })
+
+    it('[P1] should cap both salary values when both are suspect', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: 1676000, salary_max: 3422000 }),
+      ])
+      expect(normalized[0].salaryMin).toBeUndefined()
+      expect(normalized[0].salaryMax).toBeUndefined()
+    })
+
+    it('[P1] should allow salaryMin at exactly $500k boundary', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: 500000 }),
+      ])
+      expect(normalized[0].salaryMin).toBe(500000)
+    })
+
+    it('[P1] should allow salaryMax at exactly $1M boundary', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_max: 1000000 }),
+      ])
+      expect(normalized[0].salaryMax).toBe(1000000)
+    })
+
+    it('[P1] should handle undefined salary values unchanged', async () => {
+      const { normalized } = await normalize([
+        createRawListing({ salary_min: undefined, salary_max: undefined }),
+      ])
+      expect(normalized[0].salaryMin).toBeUndefined()
+      expect(normalized[0].salaryMax).toBeUndefined()
+    })
+  })
+
   describe('edge cases', () => {
     it('[P1] should handle empty input array', async () => {
       const { normalized, skippedCount } = await normalize([])

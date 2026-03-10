@@ -237,11 +237,11 @@ describe('GET /api/resume — edge cases', () => {
     expect(body.data).toEqual({
       id: 'resume-null-fields',
       fileName: 'resume.pdf',
+      skills: null,
       uploadedAt: '2026-01-01T00:00:00.000Z',
     })
-    // The GET response does not include parsedData, skills, or experience
+    // The GET response does not include parsedData or experience
     expect(body.data.parsedData).toBeUndefined()
-    expect(body.data.skills).toBeUndefined()
   })
 
   it('[P1] should return 500 on database timeout', async () => {

@@ -8,3 +8,10 @@ export function createDiscoveryQueue(): Queue {
     connection: parseRedisConnection(config.REDIS_URL),
   })
 }
+
+export function createRescoreQueue(): Queue {
+  const config = getConfig()
+  return new Queue('rescore-pipeline', {
+    connection: parseRedisConnection(config.REDIS_URL),
+  })
+}

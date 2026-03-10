@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Recon — one-command local dev startup
-# Usage: ./run.sh        (start everything)
-#        ./run.sh stop    (tear down)
+# Usage: ./run.sh         (start everything)
+#        ./run.sh stop     (stop containers, keep data)
+#        ./run.sh nuke     (stop containers, wipe all data, start fresh)
 
 DC="docker compose -f docker-compose.yml -f docker-compose.dev.yml"
 
@@ -18,8 +19,25 @@ error() { echo -e "${RED}▸${NC} $1"; }
 
 if [ "${1:-}" = "stop" ]; then
   info "Stopping services..."
+  pkill -f "next dev" 2>/dev/null || true
+  pkill -f "tsx.*worker" 2>/dev/null || true
+  pkill -f "node.*worker" 2>/dev/null || true
+  sleep 1
   $DC down
   echo -e "${GREEN}Done.${NC}"
+  exit 0
+fi
+
+if [ "${1:-}" = "nuke" ]; then
+  warn "Nuking everything (containers + volumes + data)..."
+  # Kill any running dev server and worker processes
+  pkill -f "next dev" 2>/dev/null || true
+  pkill -f "tsx.*worker" 2>/dev/null || true
+  pkill -f "node.*worker" 2>/dev/null || true
+  sleep 1
+  $DC down -v
+  info "All containers, volumes, and data removed."
+  info "Run ./run.sh to start fresh."
   exit 0
 fi
 
@@ -84,6 +102,29 @@ info "Databases ready"
 if [ ! -d node_modules ]; then
   info "Installing dependencies..."
   pnpm install
+fi
+
+# 5b. Download LLM model if not present (Qwen 3.5 2B, ~1.3GB)
+MODEL_DIR="models"
+MODEL_FILE="$MODEL_DIR/Qwen3.5-2B-Q4_K_M.gguf"
+MODEL_URL="https://huggingface.co/Qwen/Qwen3.5-2B-GGUF/resolve/main/qwen3.5-2b-q4_k_m.gguf"
+
+if [ ! -f "$MODEL_FILE" ]; then
+  info "Downloading LLM model (Qwen 3.5 2B, ~1.3GB)..."
+  mkdir -p "$MODEL_DIR"
+  if command -v curl &>/dev/null; then
+    curl -L --progress-bar -o "$MODEL_FILE" "$MODEL_URL"
+  elif command -v wget &>/dev/null; then
+    wget --show-progress -O "$MODEL_FILE" "$MODEL_URL"
+  else
+    warn "Neither curl nor wget found — skipping model download."
+    warn "LLM scoring will fall back to 4-axis engine."
+    warn "Download manually: $MODEL_URL → $MODEL_FILE"
+  fi
+
+  if [ -f "$MODEL_FILE" ]; then
+    info "Model downloaded successfully"
+  fi
 fi
 
 # 6. Run migrations

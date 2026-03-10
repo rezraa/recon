@@ -4,16 +4,6 @@ import type { NormalizedJob } from '@/lib/pipeline/types'
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn(),
-}))
-
-vi.mock('@/lib/ai/models', () => ({
-  getEmbeddingModel: vi.fn(),
-  getNERModel: vi.fn(),
-  getZeroShotClassifier: vi.fn(),
-}))
-
 vi.mock('@/lib/ai/embeddings', () => ({
   computeEmbedding: vi.fn().mockResolvedValue(new Float32Array(384).fill(0.5)),
   cosineSimilarity: vi.fn().mockReturnValue(0.85),
@@ -167,10 +157,10 @@ vi.mock('@/lib/pipeline/scoring', () => ({
     return {
       matchScore: 75,
       matchBreakdown: {
-        skills: { score: 80, weight: 0.4, signals: { keyword: 0.8, semantic: 0.7 } },
-        experience: { score: 70, weight: 0.25, signals: { keyword: 0.6, semantic: null } },
-        seniority: { score: 65, weight: 0.2, signals: { keyword: null, semantic: 0.5 } },
-        techStack: { score: 75, weight: 0.15, signals: { keyword: 0.7, semantic: 0.6 } },
+        skills: { score: 80, weight: 0.45, signals: { keyword: null, semantic: 0.8 } },
+        experience: { score: 70, weight: 0.15, signals: { keyword: null, semantic: 0.7 } },
+        seniority: { score: 65, weight: 0.15, signals: { keyword: null, semantic: 0.65 } },
+        techStack: { score: 75, weight: 0.25, signals: { keyword: null, semantic: 0.75 } },
       },
     }
   }),

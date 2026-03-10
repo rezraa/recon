@@ -1,26 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 
-// Mock Transformers.js at module level
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn(),
+// Mock LLM module
+vi.mock('@/lib/ai/llm', () => ({
+  getLLMModel: vi.fn(),
+  isModelAvailable: vi.fn(),
 }))
 
-// Mock model manager with controllable behavior
-vi.mock('@/lib/ai/models', () => ({
-  getEmbeddingModel: vi.fn(),
-  getNERModel: vi.fn(),
-  getZeroShotClassifier: vi.fn(),
-}))
-
-import { getEmbeddingModel, getNERModel, getZeroShotClassifier } from '@/lib/ai/models'
+import { getLLMModel, isModelAvailable } from '@/lib/ai/llm'
 import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
-import { scoreJob } from './scoring'
+import { buildPrompt, extractAxisScores, scoreJob } from './scoring'
 
-const mockGetEmbeddingModel = vi.mocked(getEmbeddingModel)
-const mockGetNERModel = vi.mocked(getNERModel)
-const mockGetZeroShotClassifier = vi.mocked(getZeroShotClassifier)
+const mockIsModelAvailable = vi.mocked(isModelAvailable)
+const mockGetLLMModel = vi.mocked(getLLMModel)
 
 // ─── Test Helpers ──────────────────────────────────────────────────────────
 
@@ -31,7 +24,7 @@ function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob 
     title: 'Senior Software Engineer',
     company: 'Acme Corp',
     descriptionHtml: undefined,
-    descriptionText: 'We are looking for a senior software engineer with 5+ years of experience in React, TypeScript, and Node.js. Must have strong CI/CD experience and PostgreSQL knowledge.',
+    descriptionText: 'We are looking for a senior software engineer with 5+ years of experience in React, TypeScript, and Node.js.',
     salaryMin: undefined,
     salaryMax: undefined,
     location: undefined,
@@ -60,141 +53,192 @@ function createResume(overrides?: Partial<ParsedResume>): ParsedResume {
   }
 }
 
-/** Generate a mock embedding with a biased direction for similarity control */
-function mockEmbedding(bias: number): Float32Array {
-  const arr = new Float32Array(384)
-  for (let i = 0; i < 384; i++) {
-    arr[i] = bias + (i % 10) * 0.01
+function setupLLMMock(response: string) {
+  mockIsModelAvailable.mockReturnValue(true)
+
+  const mockSession = {
+    prompt: vi.fn().mockResolvedValue(response),
   }
-  // Normalize
-  let mag = 0
-  for (let i = 0; i < 384; i++) mag += arr[i] * arr[i]
-  mag = Math.sqrt(mag)
-  for (let i = 0; i < 384; i++) arr[i] /= mag
-  return arr
+  const mockContext = {}
+  const mockLLM = {
+    createContext: vi.fn().mockResolvedValue(mockContext),
+    createSession: vi.fn().mockReturnValue(mockSession),
+    disposeContext: vi.fn().mockResolvedValue(undefined),
+  }
+  mockGetLLMModel.mockResolvedValue(mockLLM as never)
+
+  return { mockLLM, mockSession, mockContext }
 }
 
-function setupMocks(options?: {
-  embeddingBias?: number
-  nerEntities?: Array<{ entity: string; word: string; score: number }>
-  classifierLabel?: string
-  classifierScore?: number
-  highSimilarity?: boolean
-}) {
-  const bias = options?.embeddingBias ?? 0.5
-  const highSim = options?.highSimilarity ?? false
+// ─── buildPrompt ──────────────────────────────────────────────────────────
 
-  // Embedding model: returns similar embeddings for high match, different for low match
-  const mockEmbeddingModel = vi.fn().mockImplementation(() => {
-    const emb = highSim ? mockEmbedding(0.5) : mockEmbedding(bias)
-    return Promise.resolve({ data: emb })
+describe('buildPrompt', () => {
+  it('[P1] should include resume text and job details', () => {
+    const prompt = buildPrompt('Skills: React, TypeScript', 'Software Engineer', 'Build web apps with React.')
+
+    expect(prompt).toContain('Skills: React, TypeScript')
+    expect(prompt).toContain('Software Engineer')
+    expect(prompt).toContain('Build web apps with React.')
   })
-  mockGetEmbeddingModel.mockResolvedValue(mockEmbeddingModel as never)
 
-  // NER model
-  const nerEntities = options?.nerEntities ?? [
-    { entity: 'B-MISC', word: '5 years', score: 0.95 },
-  ]
-  const mockNERModel = vi.fn().mockResolvedValue(nerEntities)
-  mockGetNERModel.mockResolvedValue(mockNERModel as never)
+  it('[P1] should request 4-axis scoring format', () => {
+    const prompt = buildPrompt('test', 'test', 'test')
 
-  // Zero-shot classifier
-  const label = options?.classifierLabel ?? 'senior'
-  const score = options?.classifierScore ?? 0.85
-  const mockClassifier = vi.fn().mockResolvedValue({
-    labels: [label, 'mid-level', 'junior'],
-    scores: [score, 0.10, 0.05],
+    expect(prompt).toContain('Skills:')
+    expect(prompt).toContain('Experience:')
+    expect(prompt).toContain('Seniority:')
+    expect(prompt).toContain('TechStack:')
   })
-  mockGetZeroShotClassifier.mockResolvedValue(mockClassifier as never)
 
-  return { mockEmbeddingModel, mockNERModel, mockClassifier }
-}
+  it('[P1] should truncate long resume text to 300 chars', () => {
+    const longResume = 'a'.repeat(500)
+    const prompt = buildPrompt(longResume, 'Title', 'Desc')
+
+    // The resume portion should be sliced to 300
+    expect(prompt).not.toContain('a'.repeat(500))
+    expect(prompt).toContain('a'.repeat(300))
+  })
+
+  it('[P1] should truncate long job description to 400 chars', () => {
+    const longDesc = 'b'.repeat(600)
+    const prompt = buildPrompt('resume', 'Title', longDesc)
+
+    expect(prompt).not.toContain('b'.repeat(600))
+    expect(prompt).toContain('b'.repeat(400))
+  })
+})
+
+// ─── extractAxisScores ─────────────────────────────────────────────────────
+
+describe('extractAxisScores', () => {
+  it('[P1] should parse valid 4-axis response', () => {
+    const response = 'Skills: 75\nExperience: 60\nSeniority: 80\nTechStack: 65'
+    const scores = extractAxisScores(response)
+
+    expect(scores).toEqual({
+      skills: 75,
+      experience: 60,
+      seniority: 80,
+      techStack: 65,
+    })
+  })
+
+  it('[P1] should handle case-insensitive labels', () => {
+    const response = 'skills: 70\nexperience: 50\nseniority: 60\ntechstack: 55'
+    const scores = extractAxisScores(response)
+
+    expect(scores).toEqual({
+      skills: 70,
+      experience: 50,
+      seniority: 60,
+      techStack: 55,
+    })
+  })
+
+  it('[P1] should clamp scores above 100 down to 100', () => {
+    // Note: regex \d{1,3} won't match negative numbers, so we only test high values
+    const response = 'Skills: 150\nExperience: 100\nSeniority: 80\nTechStack: 200'
+    const scores = extractAxisScores(response)
+
+    expect(scores).not.toBeNull()
+    expect(scores!.skills).toBe(100)
+    expect(scores!.experience).toBe(100)
+    expect(scores!.seniority).toBe(80)
+    expect(scores!.techStack).toBe(100)
+  })
+
+  it('[P1] should fallback to single number when 4-axis format is missing', () => {
+    const response = '72'
+    const scores = extractAxisScores(response)
+
+    expect(scores).toEqual({
+      skills: 72,
+      experience: 72,
+      seniority: 72,
+      techStack: 72,
+    })
+  })
+
+  it('[P1] should return null for unparseable response', () => {
+    const response = 'I cannot score this candidate.'
+    const scores = extractAxisScores(response)
+
+    expect(scores).toBeNull()
+  })
+
+  it('[P1] should return null for out-of-range single number', () => {
+    const response = 'Score: 999'
+    // 999 is 3 digits but > 100, fallback rejects it
+    const scores = extractAxisScores(response)
+    expect(scores).toBeNull()
+  })
+
+  it('[P1] should prefer 2+ digit numbers over single digits in fallback', () => {
+    // "Here are the 4 scores: 72" — should pick 72, not 4
+    const response = 'Here are the 4 scores: 72'
+    const scores = extractAxisScores(response)
+
+    expect(scores).toEqual({
+      skills: 72,
+      experience: 72,
+      seniority: 72,
+      techStack: 72,
+    })
+  })
+
+  it('[P2] should handle extra whitespace in response', () => {
+    const response = '  Skills:  75  \n  Experience:  60  \n  Seniority:  80  \n  TechStack:  65  '
+    const scores = extractAxisScores(response)
+
+    expect(scores).toEqual({
+      skills: 75,
+      experience: 60,
+      seniority: 80,
+      techStack: 65,
+    })
+  })
+})
+
+// ─── scoreJob ──────────────────────────────────────────────────────────────
 
 describe('scoreJob', () => {
-  it('[P1] should produce a high match score when resume closely matches job', async () => {
-    setupMocks({ highSimilarity: true })
+  it('[P1] should throw when model is not available', async () => {
+    mockIsModelAvailable.mockReturnValue(false)
+
+    const job = createNormalizedJob()
+    const resume = createResume()
+
+    await expect(scoreJob(job, resume)).rejects.toThrow('LLM model not found')
+  })
+
+  it('[P1] should throw when getLLMModel returns null', async () => {
+    mockIsModelAvailable.mockReturnValue(true)
+    mockGetLLMModel.mockResolvedValue(null)
+
+    const job = createNormalizedJob()
+    const resume = createResume()
+
+    await expect(scoreJob(job, resume)).rejects.toThrow('Failed to load LLM model')
+  })
+
+  it('[P1] should return valid score and breakdown from LLM response', async () => {
+    setupLLMMock('Skills: 80\nExperience: 70\nSeniority: 75\nTechStack: 85')
 
     const job = createNormalizedJob()
     const resume = createResume()
 
     const { matchScore, matchBreakdown } = await scoreJob(job, resume)
 
-    expect(matchScore).toBeGreaterThanOrEqual(70)
-    expect(matchScore).toBeLessThanOrEqual(100)
-    expect(matchBreakdown.skills.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.skills.weight).toBe(0.45)
+    // Weighted: 80*0.45 + 70*0.15 + 75*0.15 + 85*0.25 = 36 + 10.5 + 11.25 + 21.25 = 79
+    expect(matchScore).toBe(79)
+    expect(matchBreakdown.skills.score).toBe(80)
+    expect(matchBreakdown.experience.score).toBe(70)
+    expect(matchBreakdown.seniority.score).toBe(75)
+    expect(matchBreakdown.techStack.score).toBe(85)
   })
 
-  it('[P1] should produce a low match score when resume does not match job', async () => {
-    // Use alternating embeddings so resume vs job embeddings are dissimilar
-    let callCount = 0
-    const mockEmbeddingModel = vi.fn().mockImplementation(() => {
-      callCount++
-      const emb = callCount % 2 === 0 ? mockEmbedding(0.9) : mockEmbedding(0.1)
-      return Promise.resolve({ data: emb })
-    })
-    mockGetEmbeddingModel.mockResolvedValue(mockEmbeddingModel as never)
-
-    const mockNERModel = vi.fn().mockResolvedValue([])
-    mockGetNERModel.mockResolvedValue(mockNERModel as never)
-
-    const mockClassifier = vi.fn().mockResolvedValue({
-      labels: ['junior', 'mid-level', 'senior'],
-      scores: [0.5, 0.3, 0.2],
-    })
-    mockGetZeroShotClassifier.mockResolvedValue(mockClassifier as never)
-
-    const job = createNormalizedJob({
-      title: 'Marine Biologist',
-      descriptionText: 'Study ocean ecosystems and marine life in deep sea environments. PhD in marine biology required.',
-    })
-    const resume = createResume({
-      skills: ['Python', 'Machine Learning', 'AWS'],
-      experience: [{ title: 'Data Analyst', company: 'DataCo', years: 2 }],
-      jobTitles: ['Data Analyst'],
-    })
-
-    const { matchScore } = await scoreJob(job, resume)
-
-    expect(matchScore).toBeLessThan(70)
-  })
-
-  it('[P1] should produce a valid score for sparse job data (not NaN or 0)', async () => {
-    setupMocks({ nerEntities: [] })
-
-    const job = createNormalizedJob({
-      title: 'Engineer',
-      descriptionText: 'Acme Corp',
-    })
-    const resume = createResume()
-
-    const { matchScore, matchBreakdown } = await scoreJob(job, resume)
-
-    expect(matchScore).not.toBeNaN()
-    expect(matchScore).toBeGreaterThanOrEqual(0)
-    expect(matchScore).toBeLessThanOrEqual(100)
-    expect(matchBreakdown).toBeDefined()
-  })
-
-  it('[P1] should reflect semantic match in score when keyword misses but embedding hits', async () => {
-    setupMocks({ highSimilarity: true })
-
-    const job = createNormalizedJob({
-      descriptionText: 'Looking for someone with deployment automation and continuous integration experience.',
-    })
-    const resume = createResume({
-      skills: ['CI/CD', 'Jenkins', 'GitHub Actions'],
-    })
-
-    const { matchBreakdown } = await scoreJob(job, resume)
-
-    // Semantic signal should be present even though exact keyword match may be low
-    expect(matchBreakdown.skills.signals.semantic).not.toBeNull()
-    expect(matchBreakdown.skills.signals.semantic).toBeGreaterThan(0)
-  })
-
-  it('[P1] should compute correct weighted average: 0.45*skills + 0.15*exp + 0.15*sen + 0.25*tech', async () => {
-    setupMocks({ highSimilarity: true })
+  it('[P1] should compute correct weighted average', async () => {
+    setupLLMMock('Skills: 90\nExperience: 40\nSeniority: 60\nTechStack: 80')
 
     const job = createNormalizedJob()
     const resume = createResume()
@@ -211,36 +255,19 @@ describe('scoreJob', () => {
     expect(matchScore).toBe(expected)
   })
 
-  it('[P1] should be deterministic: same inputs produce same score', async () => {
-    setupMocks({ highSimilarity: true })
-    const job = createNormalizedJob()
-    const resume = createResume()
-
-    const result1 = await scoreJob(job, resume)
-
-    setupMocks({ highSimilarity: true })
-    const result2 = await scoreJob(job, resume)
-
-    expect(result1.matchScore).toBe(result2.matchScore)
-    expect(result1.matchBreakdown.skills.score).toBe(result2.matchBreakdown.skills.score)
-    expect(result1.matchBreakdown.experience.score).toBe(result2.matchBreakdown.experience.score)
-  })
-
-  it('[P1] should score each axis independently', async () => {
-    setupMocks({ highSimilarity: true })
+  it('[P1] should set correct weights in breakdown', async () => {
+    setupLLMMock('Skills: 70\nExperience: 60\nSeniority: 50\nTechStack: 80')
 
     const job = createNormalizedJob()
     const resume = createResume()
 
     const { matchBreakdown } = await scoreJob(job, resume)
 
-    // Each axis has its own score, weight, and signals
     expect(matchBreakdown.skills.weight).toBe(0.45)
     expect(matchBreakdown.experience.weight).toBe(0.15)
     expect(matchBreakdown.seniority.weight).toBe(0.15)
     expect(matchBreakdown.techStack.weight).toBe(0.25)
 
-    // Weights sum to 1.0
     const totalWeight =
       matchBreakdown.skills.weight +
       matchBreakdown.experience.weight +
@@ -249,99 +276,37 @@ describe('scoreJob', () => {
     expect(totalWeight).toBeCloseTo(1.0)
   })
 
-  it('[P1] should handle single-signal fallback (only semantic, no RRF)', async () => {
-    setupMocks({ highSimilarity: true })
+  it('[P1] should throw on unparseable LLM response', async () => {
+    setupLLMMock('I cannot provide a score for this candidate.')
 
-    // No seniority keywords in job or resume, but semantic signal from classifier
-    const job = createNormalizedJob({
-      title: 'IC4 Platform Architect',
-      descriptionText: 'Design scalable systems. Must know React and TypeScript.',
-    })
-    const resume = createResume({
-      jobTitles: ['L6 Staff Engineer'],
-    })
+    const job = createNormalizedJob()
+    const resume = createResume()
 
-    const { matchBreakdown } = await scoreJob(job, resume)
-
-    // Seniority axis should still have a valid score
-    expect(matchBreakdown.seniority.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.seniority.score).toBeLessThanOrEqual(100)
+    await expect(scoreJob(job, resume)).rejects.toThrow('unparseable response')
   })
 
-  it('[P1] should handle zero-evidence fallback (score = mean of other axes)', async () => {
-    setupMocks({ nerEntities: [], classifierScore: 0 })
+  it('[P1] should dispose LLM context even on error', async () => {
+    mockIsModelAvailable.mockReturnValue(true)
 
-    const job = createNormalizedJob({
-      title: 'Role',
-      descriptionText: 'A position at a company.',
-    })
-    const resume = createResume({
-      skills: [],
-      experience: [],
-      jobTitles: [],
-    })
+    const mockContext = {}
+    const mockLLM = {
+      createContext: vi.fn().mockResolvedValue(mockContext),
+      createSession: vi.fn().mockReturnValue({
+        prompt: vi.fn().mockRejectedValue(new Error('inference failed')),
+      }),
+      disposeContext: vi.fn().mockResolvedValue(undefined),
+    }
+    mockGetLLMModel.mockResolvedValue(mockLLM as never)
 
-    const { matchScore, matchBreakdown } = await scoreJob(job, resume)
+    const job = createNormalizedJob()
+    const resume = createResume()
 
-    // All axes should have some score (not NaN, not negative)
-    expect(matchBreakdown.skills.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.experience.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.seniority.score).toBeGreaterThanOrEqual(0)
-    expect(matchBreakdown.techStack.score).toBeGreaterThanOrEqual(0)
-    expect(matchScore).toBeGreaterThanOrEqual(0)
-    expect(matchScore).not.toBeNaN()
-  })
-
-  it('[P2] should boost seniority axis when job title closely matches resume title', async () => {
-    // Setup with high embedding similarity to trigger title boost
-    const mockEmbeddingModel = vi.fn()
-    // All embeddings are nearly identical → high cosine similarity → title boost
-    const sameEmb = mockEmbedding(0.5)
-    mockEmbeddingModel.mockResolvedValue({ data: sameEmb })
-    mockGetEmbeddingModel.mockResolvedValue(mockEmbeddingModel as never)
-
-    const mockNERModel = vi.fn().mockResolvedValue([
-      { entity: 'B-MISC', word: '5 years', score: 0.95 },
-    ])
-    mockGetNERModel.mockResolvedValue(mockNERModel as never)
-
-    const mockClassifier = vi.fn().mockResolvedValue({
-      labels: ['senior', 'mid-level', 'junior'],
-      scores: [0.85, 0.10, 0.05],
-    })
-    mockGetZeroShotClassifier.mockResolvedValue(mockClassifier as never)
-
-    const job = createNormalizedJob({ title: 'Senior Software Engineer' })
-    const resume = createResume({ jobTitles: ['Senior Software Engineer'] })
-
-    const { matchBreakdown } = await scoreJob(job, resume)
-
-    // Title should be boosted when there's high similarity
-    expect(matchBreakdown.seniority.score).toBeGreaterThan(0)
-  })
-
-  it('[P2] should produce a conservative non-zero score when job has zero matchable content', async () => {
-    setupMocks({ nerEntities: [], classifierScore: 0 })
-
-    const job = createNormalizedJob({
-      title: '',
-      descriptionText: '',
-    })
-    const resume = createResume({
-      skills: [],
-      experience: [],
-      jobTitles: [],
-    })
-
-    const { matchScore } = await scoreJob(job, resume)
-
-    expect(matchScore).not.toBeNaN()
-    expect(matchScore).toBeGreaterThanOrEqual(0)
-    expect(matchScore).toBeLessThanOrEqual(100)
+    await expect(scoreJob(job, resume)).rejects.toThrow()
+    expect(mockLLM.disposeContext).toHaveBeenCalledWith(mockContext)
   })
 
   it('[P1] should produce integer matchScore between 0-100', async () => {
-    setupMocks({ highSimilarity: true })
+    setupLLMMock('Skills: 73\nExperience: 61\nSeniority: 55\nTechStack: 82')
 
     const job = createNormalizedJob()
     const resume = createResume()
@@ -354,7 +319,7 @@ describe('scoreJob', () => {
   })
 
   it('[P1] should produce axis scores between 0-100', async () => {
-    setupMocks({ highSimilarity: true })
+    setupLLMMock('Skills: 73\nExperience: 61\nSeniority: 55\nTechStack: 82')
 
     const job = createNormalizedJob()
     const resume = createResume()
@@ -365,5 +330,20 @@ describe('scoreJob', () => {
       expect(matchBreakdown[axis].score).toBeGreaterThanOrEqual(0)
       expect(matchBreakdown[axis].score).toBeLessThanOrEqual(100)
     }
+  })
+
+  it('[P2] should include semantic signals in breakdown', async () => {
+    setupLLMMock('Skills: 80\nExperience: 70\nSeniority: 75\nTechStack: 85')
+
+    const job = createNormalizedJob()
+    const resume = createResume()
+
+    const { matchBreakdown } = await scoreJob(job, resume)
+
+    // Each axis should have semantic signal derived from score
+    expect(matchBreakdown.skills.signals.semantic).toBe(0.8)
+    expect(matchBreakdown.experience.signals.semantic).toBe(0.7)
+    expect(matchBreakdown.seniority.signals.semantic).toBe(0.75)
+    expect(matchBreakdown.techStack.signals.semantic).toBe(0.85)
   })
 })

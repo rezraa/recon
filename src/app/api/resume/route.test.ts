@@ -45,6 +45,7 @@ describe('GET /api/resume', () => {
     expect(body.data).toEqual({
       id: 'test-id',
       fileName: 'resume.pdf',
+      skills: null,
       uploadedAt: '2026-01-01T00:00:00.000Z',
     })
   })

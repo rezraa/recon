@@ -1,11 +1,9 @@
-import { computeEmbedding, cosineSimilarity } from '@/lib/ai/embeddings'
-import { getNERModel, getZeroShotClassifier } from '@/lib/ai/models'
+import { getLLMModel, isModelAvailable } from '@/lib/ai/llm'
 
 import type { ParsedResume } from './resumeTypes'
-import { computeRRFScore } from './rrf'
-import type { MatchBreakdown, NormalizedJob, ScoringAxisResult, Signal } from './types'
+import type { MatchBreakdown, NormalizedJob } from './types'
 
-// ─── Constants ─────────────────────────────────────────────────────────────
+// ─── Axis Weights ─────────────────────────────────────────────────────────
 
 const WEIGHTS = {
   skills: 0.45,
@@ -14,351 +12,179 @@ const WEIGHTS = {
   techStack: 0.25,
 } as const
 
-const SENIORITY_TERMS = [
-  'junior', 'entry', 'associate',
-  'mid', 'intermediate',
-  'senior', 'lead', 'principal', 'staff', 'director', 'vp',
-] as const
+// ─── Prompt ───────────────────────────────────────────────────────────────
 
-// ─── Type helpers for Transformers.js pipeline outputs ─────────────────────
+export function buildPrompt(resumeText: string, jobTitle: string, jobDesc: string): string {
+  return `You are screening resumes. Score how well this candidate matches the job across 4 axes. Consider skill transferability — experience in one technical area can apply to related areas.
 
-interface NEREntity {
-  entity: string
-  word: string
-  score: number
+Score each axis 0-100:
+- Skills: How many of the candidate's skills match the job requirements?
+- Experience: Does the candidate's experience level match what the job asks for?
+- Seniority: Does the candidate's career level match the job's seniority level?
+- TechStack: How well does the candidate's tech stack cover the job's tech needs?
+
+Scoring guide per axis:
+5-20: no relevant match (completely different domain)
+25-40: few transferable elements
+45-60: moderate overlap, would need ramp-up
+65-80: strong match, credible candidate
+85-95: exceptional fit
+
+Return ONLY 4 lines in this exact format, nothing else:
+Skills: <number>
+Experience: <number>
+Seniority: <number>
+TechStack: <number>
+
+Candidate: ${resumeText.slice(0, 300)}
+Job: ${jobTitle} - ${jobDesc.slice(0, 400)}
+
+Scores:`
 }
 
-function flattenNEROutput(output: unknown): NEREntity[] {
-  if (!Array.isArray(output)) return []
-  const flat = output.flat() as NEREntity[]
-  return flat.filter((e) => e && typeof e.entity === 'string' && typeof e.score === 'number')
+// ─── Resume Text Builder ──────────────────────────────────────────────────
+
+function buildResumeText(resume: ParsedResume): string {
+  return [
+    `Skills: ${resume.skills.join(', ')}`,
+    ...resume.experience.map(
+      (e) => `${e.title} at ${e.company}${e.years ? ` (${e.years} years)` : ''}`,
+    ),
+  ].join('. ')
 }
 
-interface ZeroShotResult {
-  labels: string[]
-  scores: number[]
+// ─── Score Extraction ─────────────────────────────────────────────────────
+
+export interface AxisScores {
+  skills: number
+  experience: number
+  seniority: number
+  techStack: number
 }
-
-function normalizeZeroShotOutput(output: unknown): ZeroShotResult {
-  if (output == null) return { labels: [], scores: [] }
-  if (Array.isArray(output)) {
-    return output.length > 0 ? normalizeZeroShotOutput(output[0]) : { labels: [], scores: [] }
-  }
-  const obj = output as Record<string, unknown>
-  return {
-    labels: Array.isArray(obj.labels) ? (obj.labels as string[]) : [],
-    scores: Array.isArray(obj.scores) ? (obj.scores as number[]) : [],
-  }
-}
-
-// ─── Utility: Convert similarity score (0-1) to RRF rank (1-100) ──────────
-
-function scoreToRank(score: number): number {
-  return Math.max(1, Math.ceil((1 - score) * 100))
-}
-
-// ─── Extract tech terms from job text ──────────────────────────────────────
-
-const TECH_TERM_REGEX = /\b[A-Z][a-zA-Z+#.]*(?:\.js|\.ts|\.py|\.go|\.rs)?\b|\b[a-z]+(?:sql|db|mq|js|ml)\b/gi
 
 /**
- * Extract technology/tool terms from job text.
- * Used by Tech Stack axis to count how many job requirements the resume covers.
+ * Parse the LLM response for per-axis scores.
+ * Expected format:
+ *   Skills: 75
+ *   Experience: 60
+ *   Seniority: 80
+ *   TechStack: 65
  */
-function extractTechTerms(jobText: string): string[] {
-  const matches = jobText.match(TECH_TERM_REGEX) ?? []
-  // Deduplicate case-insensitively and filter short terms
-  const seen = new Set<string>()
-  const terms: string[] = []
-  for (const m of matches) {
-    const lower = m.toLowerCase()
-    if (lower.length >= 2 && !seen.has(lower)) {
-      seen.add(lower)
-      terms.push(m)
+export function extractAxisScores(response: string): AxisScores | null {
+  const skillsMatch = response.match(/Skills:\s*(\d{1,3})/i)
+  const experienceMatch = response.match(/Experience:\s*(\d{1,3})/i)
+  const seniorityMatch = response.match(/Seniority:\s*(\d{1,3})/i)
+  const techStackMatch = response.match(/TechStack:\s*(\d{1,3})/i)
+
+  if (!skillsMatch || !experienceMatch || !seniorityMatch || !techStackMatch) {
+    // Try fallback: extract a single holistic score (prefer 2-digit numbers to avoid
+    // matching noise like "4 axes" or "0-100" in preamble text)
+    const twoDigitMatch = response.match(/\b(\d{2,3})\b/)
+    if (twoDigitMatch) {
+      const n = parseInt(twoDigitMatch[1], 10)
+      if (n >= 0 && n <= 100) {
+        return { skills: n, experience: n, seniority: n, techStack: n }
+      }
     }
-  }
-  return terms
-}
-
-// ─── Skills Axis (40% weight) ──────────────────────────────────────────────
-// Measures: "what fraction of YOUR skills does the job mention?"
-
-function computeSkillsKeyword(resumeSkills: string[], jobText: string): number {
-  if (resumeSkills.length === 0) return 0
-  const lower = jobText.toLowerCase()
-  const matches = resumeSkills.filter((skill) => lower.includes(skill.toLowerCase()))
-  return matches.length / resumeSkills.length
-}
-
-async function computeSkillsSemantic(
-  resumeSkills: string[],
-  jobText: string,
-): Promise<number> {
-  if (resumeSkills.length === 0) return 0
-  const skillsText = resumeSkills.join(', ')
-  const [skillsEmb, jobEmb] = await Promise.all([
-    computeEmbedding(skillsText),
-    computeEmbedding(jobText),
-  ])
-  return Math.max(0, cosineSimilarity(skillsEmb, jobEmb))
-}
-
-// ─── Experience Axis (25% weight) ──────────────────────────────────────────
-
-const YEARS_REGEX = /(\d+)\+?\s*(?:years?|yrs?)/gi
-
-function extractYearsFromText(text: string): number[] {
-  const matches = [...text.matchAll(YEARS_REGEX)]
-  return matches.map((m) => parseInt(m[1], 10)).filter((n) => !isNaN(n))
-}
-
-function computeExperienceKeyword(resume: ParsedResume, jobText: string): number {
-  const jobYears = extractYearsFromText(jobText)
-  if (jobYears.length === 0) return 0
-
-  const resumeYears = resume.experience
-    .map((e) => e.years)
-    .filter((y): y is number => y !== null)
-
-  if (resumeYears.length === 0) return 0
-
-  const maxResumeYears = Math.max(...resumeYears)
-  const requiredYears = Math.max(...jobYears)
-
-  if (maxResumeYears >= requiredYears) return 1.0
-  return Math.max(0, maxResumeYears / requiredYears)
-}
-
-async function computeExperienceSemantic(
-  resume: ParsedResume,
-  jobText: string,
-): Promise<number> {
-  if (resume.experience.length === 0) return 0
-
-  const ner = await getNERModel()
-  const rawEntities = await ner(jobText)
-  const entities = flattenNEROutput(rawEntities)
-
-  // Extract MISC entities that might contain experience info
-  const experienceEntities = entities.filter((e) => e.score > 0.5 && e.entity.includes('MISC'))
-
-  if (experienceEntities.length === 0) return 0
-
-  // Use embedding similarity between resume experience text and extracted entities
-  const resumeExpText = resume.experience
-    .map((e) => `${e.title} at ${e.company}${e.years ? ` for ${e.years} years` : ''}`)
-    .join('. ')
-  const entityText = experienceEntities.map((e) => e.word).join(' ')
-
-  const [resumeEmb, entityEmb] = await Promise.all([
-    computeEmbedding(resumeExpText),
-    computeEmbedding(entityText),
-  ])
-
-  return Math.max(0, cosineSimilarity(resumeEmb, entityEmb))
-}
-
-// ─── Seniority Axis (20% weight) ───────────────────────────────────────────
-
-function computeSeniorityKeyword(resume: ParsedResume, jobTitle: string, jobText: string): number {
-  const jobLower = (jobTitle + ' ' + jobText).toLowerCase()
-  const resumeTitlesLower = resume.jobTitles.map((t) => t.toLowerCase())
-
-  const jobSeniorityTerms = SENIORITY_TERMS.filter((term) => jobLower.includes(term))
-  if (jobSeniorityTerms.length === 0) return 0
-
-  const resumeSeniorityTerms = SENIORITY_TERMS.filter((term) =>
-    resumeTitlesLower.some((t) => t.includes(term)),
-  )
-
-  if (resumeSeniorityTerms.length === 0) return 0
-
-  // Check for overlap in seniority terms
-  const overlap = jobSeniorityTerms.filter((t) => resumeSeniorityTerms.includes(t))
-  return overlap.length > 0 ? 1.0 : 0.3
-}
-
-async function computeSenioritySemantic(
-  resume: ParsedResume,
-  jobTitle: string,
-): Promise<{ score: number; titleBoost: boolean }> {
-  if (resume.jobTitles.length === 0) return { score: 0, titleBoost: false }
-
-  const classifier = await getZeroShotClassifier()
-  const seniorityLabels = ['junior', 'mid-level', 'senior', 'lead', 'principal', 'staff', 'director']
-
-  const jobRaw = await classifier(jobTitle, seniorityLabels)
-  const jobResult = normalizeZeroShotOutput(jobRaw)
-  const jobTopLabel = jobResult.labels[0] ?? ''
-  const jobTopScore = jobResult.scores[0] ?? 0
-
-  // Compute job title embedding once, outside the loop (H3 fix)
-  const jobTitleEmb = await computeEmbedding(jobTitle)
-
-  // Classify resume titles
-  let bestMatch = 0
-  let titleBoost = false
-
-  for (const resumeTitle of resume.jobTitles) {
-    const resumeRaw = await classifier(resumeTitle, seniorityLabels)
-    const resumeResult = normalizeZeroShotOutput(resumeRaw)
-    const resumeTopLabel = resumeResult.labels[0] ?? ''
-
-    if (resumeTopLabel === jobTopLabel) {
-      bestMatch = Math.max(bestMatch, jobTopScore)
+    // Last resort: single digit (e.g., "5" for very low scores)
+    const singleDigitMatch = response.match(/\b(\d)\b/)
+    if (singleDigitMatch) {
+      const n = parseInt(singleDigitMatch[1], 10)
+      return { skills: n, experience: n, seniority: n, techStack: n }
     }
-
-    // Title boost: check embedding similarity between job title and resume titles
-    const resumeEmb = await computeEmbedding(resumeTitle)
-    const sim = cosineSimilarity(jobTitleEmb, resumeEmb)
-    if (sim > 0.8) {
-      titleBoost = true
-    }
+    return null
   }
 
-  return { score: bestMatch, titleBoost }
-}
-
-// ─── Tech Stack Axis (15% weight) ─────────────────────────────────────────
-// Measures: "what fraction of the JOB's tech requirements does the resume cover?"
-// Different from Skills: Skills asks "how many of your skills are relevant?"
-// Tech Stack asks "how many of the job's tech needs can you fill?"
-
-function computeTechStackKeyword(resumeSkills: string[], jobText: string): number {
-  const jobTechTerms = extractTechTerms(jobText)
-  if (jobTechTerms.length === 0) return 0
-  if (resumeSkills.length === 0) return 0
-
-  const resumeLower = resumeSkills.map((s) => s.toLowerCase())
-  const covered = jobTechTerms.filter((term) =>
-    resumeLower.some((skill) =>
-      skill.includes(term.toLowerCase()) || term.toLowerCase().includes(skill),
-    ),
-  )
-  return covered.length / jobTechTerms.length
-}
-
-async function computeTechStackSemantic(
-  resumeSkills: string[],
-  jobText: string,
-): Promise<number> {
-  if (resumeSkills.length === 0) return 0
-  const techText = resumeSkills.join(', ')
-  const [techEmb, jobEmb] = await Promise.all([
-    computeEmbedding(techText),
-    computeEmbedding(jobText),
-  ])
-  return Math.max(0, cosineSimilarity(techEmb, jobEmb))
-}
-
-// ─── Axis Fusion ───────────────────────────────────────────────────────────
-
-function fuseAxis(
-  keyword: number | null,
-  semantic: number | null,
-  weight: number,
-): ScoringAxisResult {
-  let score: number
-
-  if (keyword !== null && semantic !== null) {
-    // Both signals: fuse via RRF
-    const signals: (Signal | null)[] = [
-      { rank: scoreToRank(keyword) },
-      { rank: scoreToRank(semantic) },
-    ]
-    score = Math.round(computeRRFScore(signals) * 100)
-  } else if (keyword !== null) {
-    // Single signal: scale directly to 0-100
-    score = Math.round(keyword * 100)
-  } else if (semantic !== null) {
-    // Single signal: scale directly to 0-100
-    score = Math.round(semantic * 100)
-  } else {
-    // No signals: will be filled in by caller with mean of other axes
-    score = -1 // sentinel value
-  }
-
+  const clamp = (v: number) => Math.max(0, Math.min(100, v))
   return {
-    score,
-    weight,
-    signals: { keyword, semantic },
+    skills: clamp(parseInt(skillsMatch[1], 10)),
+    experience: clamp(parseInt(experienceMatch[1], 10)),
+    seniority: clamp(parseInt(seniorityMatch[1], 10)),
+    techStack: clamp(parseInt(techStackMatch[1], 10)),
   }
 }
 
-// ─── Fill Zero-Evidence Axes ───────────────────────────────────────────────
+// ─── Build Breakdown ──────────────────────────────────────────────────────
 
-function fillZeroEvidenceAxes(breakdown: MatchBreakdown): void {
-  const axes: (keyof MatchBreakdown)[] = ['skills', 'experience', 'seniority', 'techStack']
-  const sentinel = axes.filter((k) => breakdown[k].score === -1)
-  const scored = axes.filter((k) => breakdown[k].score !== -1)
-
-  if (sentinel.length === 0) return
-
-  if (scored.length === 0) {
-    // All axes have no signals — conservative score
-    for (const key of sentinel) {
-      breakdown[key].score = 25
-    }
-    return
-  }
-
-  const mean = Math.round(scored.reduce((sum, k) => sum + breakdown[k].score, 0) / scored.length)
-
-  for (const key of sentinel) {
-    breakdown[key].score = mean
+function buildBreakdown(scores: AxisScores): MatchBreakdown {
+  return {
+    skills: {
+      score: scores.skills,
+      weight: WEIGHTS.skills,
+      signals: { keyword: null, semantic: scores.skills / 100 },
+    },
+    experience: {
+      score: scores.experience,
+      weight: WEIGHTS.experience,
+      signals: { keyword: null, semantic: scores.experience / 100 },
+    },
+    seniority: {
+      score: scores.seniority,
+      weight: WEIGHTS.seniority,
+      signals: { keyword: null, semantic: scores.seniority / 100 },
+    },
+    techStack: {
+      score: scores.techStack,
+      weight: WEIGHTS.techStack,
+      signals: { keyword: null, semantic: scores.techStack / 100 },
+    },
   }
 }
 
-// ─── Main Scoring Function ─────────────────────────────────────────────────
+// ─── Main Scoring Function ────────────────────────────────────────────────
 
+/**
+ * Score a job using the local LLM (Qwen 3.5 2B via node-llama-cpp + Metal GPU).
+ *
+ * Returns per-axis scores (skills, experience, seniority, techStack) for
+ * meaningful spider chart differentiation.
+ *
+ * Throws if no model is available — callers should ensure the model is
+ * downloaded before running the pipeline.
+ */
 export async function scoreJob(
   job: NormalizedJob,
   resume: ParsedResume,
 ): Promise<{ matchScore: number; matchBreakdown: MatchBreakdown }> {
-  const jobText = job.descriptionText
-
-  // ─── Skills Axis ───────────────────────────────────────────────────────
-  const skillsKeyword = resume.skills.length > 0 ? computeSkillsKeyword(resume.skills, jobText) : null
-  const skillsSemantic = resume.skills.length > 0 ? await computeSkillsSemantic(resume.skills, jobText) : null
-  const skills = fuseAxis(skillsKeyword, skillsSemantic, WEIGHTS.skills)
-
-  // ─── Experience Axis ───────────────────────────────────────────────────
-  const expKeyword = computeExperienceKeyword(resume, jobText)
-  const expKeywordSignal = expKeyword > 0 || extractYearsFromText(jobText).length > 0 ? expKeyword : null
-  const expSemantic = resume.experience.length > 0 ? await computeExperienceSemantic(resume, jobText) : null
-  const experience = fuseAxis(expKeywordSignal, expSemantic, WEIGHTS.experience)
-
-  // ─── Seniority Axis ───────────────────────────────────────────────────
-  const senKeyword = computeSeniorityKeyword(resume, job.title, jobText)
-  const senKeywordSignal = senKeyword > 0 ? senKeyword : null
-  const senSemResult = resume.jobTitles.length > 0
-    ? await computeSenioritySemantic(resume, job.title)
-    : { score: 0, titleBoost: false }
-  const senSemanticSignal = senSemResult.score > 0 ? senSemResult.score : null
-  const seniority = fuseAxis(senKeywordSignal, senSemanticSignal, WEIGHTS.seniority)
-
-  // Apply title boost
-  if (senSemResult.titleBoost && seniority.score !== -1) {
-    seniority.score = Math.min(100, seniority.score + 10)
+  if (!isModelAvailable()) {
+    throw new Error(
+      'LLM model not found. Run `./run.sh` to download the Qwen 3.5 2B model, or set LLM_MODEL_PATH.',
+    )
   }
 
-  // ─── Tech Stack Axis ──────────────────────────────────────────────────
-  const techKeyword = resume.skills.length > 0 ? computeTechStackKeyword(resume.skills, jobText) : null
-  const techSemantic = resume.skills.length > 0 ? await computeTechStackSemantic(resume.skills, jobText) : null
-  const techStack = fuseAxis(techKeyword, techSemantic, WEIGHTS.techStack)
+  const llm = await getLLMModel()
+  if (!llm) {
+    throw new Error('Failed to load LLM model.')
+  }
 
-  // ─── Build Breakdown ──────────────────────────────────────────────────
-  const matchBreakdown: MatchBreakdown = { skills, experience, seniority, techStack }
+  const resumeText = buildResumeText(resume)
+  const prompt = buildPrompt(resumeText, job.title, job.descriptionText)
 
-  // Fill zero-evidence axes with mean of others
-  fillZeroEvidenceAxes(matchBreakdown)
+  let axisScores: AxisScores | null = null
 
-  // ─── Weighted Average ─────────────────────────────────────────────────
+  const context = await llm.createContext()
+  try {
+    const session = llm.createSession(context)
+    const response = await session.prompt(prompt, {
+      maxTokens: 40,
+      temperature: 0,
+    })
+    axisScores = extractAxisScores(response)
+  } finally {
+    await llm.disposeContext(context)
+  }
+
+  if (!axisScores) {
+    throw new Error('LLM returned unparseable response. Check prompt or model.')
+  }
+
+  const matchBreakdown = buildBreakdown(axisScores)
+
   const matchScore = Math.round(
-    matchBreakdown.skills.score * WEIGHTS.skills +
-    matchBreakdown.experience.score * WEIGHTS.experience +
-    matchBreakdown.seniority.score * WEIGHTS.seniority +
-    matchBreakdown.techStack.score * WEIGHTS.techStack,
+    axisScores.skills * WEIGHTS.skills +
+    axisScores.experience * WEIGHTS.experience +
+    axisScores.seniority * WEIGHTS.seniority +
+    axisScores.techStack * WEIGHTS.techStack,
   )
 
   return { matchScore, matchBreakdown }

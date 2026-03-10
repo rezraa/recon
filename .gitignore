@@ -41,6 +41,12 @@ yarn-error.log*
 /postgres_data/
 /redis_data/
 
+# local LLM models (GGUF files, ~1-4GB each)
+/models/
+
+# exploration scripts (not production code)
+/scripts/
+
 # vercel
 .vercel
 

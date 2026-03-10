@@ -8,6 +8,7 @@ import { getDb } from '@/lib/db/client'
 
 import { log } from './logger'
 import { discoveryProcessor } from './processors/discovery'
+import { rescoreProcessor } from './processors/scoring'
 
 const execAsync = promisify(exec)
 
@@ -52,10 +53,29 @@ export async function startWorker() {
     })
   })
 
+  // Rescore worker
+  const rescoreWorker = new Worker(
+    'rescore-pipeline',
+    rescoreProcessor,
+    { connection: redisConnection },
+  )
+
+  rescoreWorker.on('ready', () => {
+    log('info', 'worker.ready', { queue: 'rescore-pipeline' })
+  })
+
+  rescoreWorker.on('failed', (job, err) => {
+    log('error', 'worker.job.failed', {
+      jobName: job?.name,
+      jobId: job?.id,
+      error: err.message,
+    })
+  })
+
   // Graceful shutdown on Docker stop / SIGTERM
   const shutdown = async () => {
     log('info', 'worker.shutdown')
-    await worker.close()
+    await Promise.all([worker.close(), rescoreWorker.close()])
     process.exit(0)
   }
   process.on('SIGTERM', shutdown)
@@ -63,7 +83,7 @@ export async function startWorker() {
 
   log('info', 'worker.idle', { queue: 'discovery-pipeline' })
 
-  return worker
+  return { discoveryWorker: worker, rescoreWorker }
 }
 
 // Auto-start when run directly (not when imported for testing)
