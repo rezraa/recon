@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+// These tests require real embedding + LLM models (not available in CI)
+const skipInCI = !!process.env.CI
+
 import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
@@ -77,7 +80,7 @@ function getJobsByLabel(label: string): LabeledJob[] {
 
 // ─── Integration Tests (math-first hybrid scoring) ──────────────────────────
 
-describe('scoring integration — math-first hybrid calibration', () => {
+describe.skipIf(skipInCI)('scoring integration — math-first hybrid calibration', () => {
   // Embedding model load + scoring all jobs
   const TIMEOUT = 120_000
 
