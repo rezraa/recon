@@ -83,7 +83,11 @@ async function loadModel(): Promise<LLMInstance | null> {
   return {
     model,
     createContext: async () => {
-      return await model.createContext()
+      return await model.createContext({
+        flashAttention: true,
+        contextSize: 2048,
+        ignoreMemorySafetyChecks: true,
+      })
     },
     createSession: (context: LlamaContext) => {
       const sequence = context.getSequence()

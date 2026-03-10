@@ -2,6 +2,7 @@ import type { Job } from 'bullmq'
 import { and, eq } from 'drizzle-orm'
 
 import { getDb } from '@/lib/db/client'
+import { getPreferences } from '@/lib/db/queries/preferences'
 import { getResume } from '@/lib/db/queries/resume'
 import * as schema from '@/lib/db/schema'
 import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
@@ -36,6 +37,12 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
 
   const resume: ParsedResume = { skills, experience, jobTitles }
 
+  // Load salary target from preferences
+  const prefs = await getPreferences()
+  const salaryTarget = prefs?.salaryMin
+    ? (prefs.salaryMax ? Math.round((prefs.salaryMin + prefs.salaryMax) / 2) : prefs.salaryMin)
+    : null
+
   const db = getDb()
   const allJobs = await db.select().from(schema.jobsTable)
 
@@ -67,7 +74,7 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           pipelineStage: dbJob.pipelineStage ?? 'discovered',
         }
 
-        const { matchScore, matchBreakdown } = await scoreJob(normalizedJob, resume)
+        const { matchScore, matchBreakdown } = await scoreJob(normalizedJob, resume, salaryTarget)
 
         await db
           .update(schema.jobsTable)

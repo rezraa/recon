@@ -1,0 +1,177 @@
+[
+  {
+    "title": "Senior Software Engineer",
+    "company": "Stripe",
+    "description": "We're looking for a Senior Software Engineer to join our Payments team. You'll design and build APIs that power millions of transactions daily. Requirements: 5+ years of experience with distributed systems, strong proficiency in TypeScript or Go, experience with PostgreSQL and Redis, familiarity with event-driven architectures. You'll work on our API platform, build new payment methods, and improve reliability of our core systems.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Staff Frontend Engineer",
+    "company": "Vercel",
+    "description": "Join Vercel as a Staff Frontend Engineer working on Next.js and our deployment platform. You'll architect React components, optimize build performance with Turbopack, and shape the future of web development. Requirements: 7+ years frontend experience, deep expertise in React and TypeScript, experience with build tools and bundlers, understanding of CDN and edge computing. Strong track record of shipping high-quality user-facing products.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Backend Developer",
+    "company": "AutoDS",
+    "description": "We are seeking a Backend Developer to build scalable microservices for our e-commerce automation platform. You'll work with Node.js, TypeScript, PostgreSQL, and Redis. Responsibilities include designing RESTful APIs, implementing message queues with BullMQ, writing comprehensive tests, and optimizing database queries. 3+ years backend development experience required.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Full Stack Engineer",
+    "company": "Calendly",
+    "description": "Calendly is hiring a Full Stack Engineer to work on our scheduling platform. Tech stack: React, TypeScript, Node.js, PostgreSQL, GraphQL. You'll build features end-to-end from database schema to UI components. Requirements: 4+ years full-stack experience, strong testing practices, experience with CI/CD pipelines, familiarity with cloud infrastructure (AWS or GCP).",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Platform Engineer",
+    "company": "Datadog",
+    "description": "Join our Platform Engineering team to build and maintain internal developer tools and infrastructure. You'll design CI/CD pipelines, manage Kubernetes clusters, build deployment automation, and improve developer productivity. Requirements: strong experience with Go or Python, Kubernetes, Terraform, and cloud platforms. 5+ years of software engineering or platform engineering experience.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Senior TypeScript Developer",
+    "company": "Linear",
+    "description": "Linear is looking for a Senior TypeScript Developer to build our project management tool. You'll work across the full stack with React, Node.js, and PostgreSQL. Focus areas: real-time sync engine, offline-first architecture, performance optimization. Requirements: expert-level TypeScript, experience with WebSockets, strong understanding of data structures and algorithms.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Software Engineer, Infrastructure",
+    "company": "Anthropic",
+    "description": "Build and scale the infrastructure powering Claude. You'll work on distributed systems, GPU cluster management, and ML training pipelines. Requirements: 3+ years software engineering, experience with Python or Go, familiarity with containerization and orchestration, understanding of networking and storage systems. Interest in AI safety is a plus.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Senior Cloud Engineer",
+    "company": "Kunai",
+    "description": "Senior Cloud Engineer needed to design and implement cloud-native solutions on AWS. You'll architect microservices, set up monitoring and observability, manage infrastructure as code with Terraform, and implement CI/CD pipelines. Requirements: 5+ years cloud engineering, strong AWS experience, proficiency in Python or TypeScript, experience with Docker and Kubernetes.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Forward Deployed Engineer",
+    "company": "Runpod Inc.",
+    "description": "As a Forward Deployed Engineer, you'll work directly with customers to build custom integrations and solutions using our GPU cloud platform. Requirements: strong full-stack engineering skills (React, Node.js, Python), ability to debug complex distributed systems, experience with APIs and webhooks, excellent communication skills. 3+ years software engineering experience.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Sr Staff Software Engineer",
+    "company": "Uber",
+    "description": "Uber is seeking a Sr Staff Software Engineer to lead technical initiatives on our rider platform. You'll design large-scale distributed systems, mentor engineers, and drive architectural decisions. Requirements: 10+ years software engineering, expertise in Java or Go, experience with microservices at scale, strong system design skills. Track record of leading cross-team technical projects.",
+    "label": "relevant",
+    "category": "relevant-ic"
+  },
+  {
+    "title": "Administrative Assistant",
+    "company": "Wells Fargo",
+    "description": "We are seeking an Administrative Assistant to support our executive team. Responsibilities include managing calendars, coordinating meetings, preparing reports and presentations, handling correspondence, and maintaining office supplies. Requirements: 2+ years administrative experience, proficiency in Microsoft Office Suite, excellent organizational and communication skills, ability to handle confidential information.",
+    "label": "irrelevant",
+    "category": "clearly-irrelevant"
+  },
+  {
+    "title": "Registered Nurse - ICU",
+    "company": "Mayo Clinic",
+    "description": "Join our Intensive Care Unit as a Registered Nurse. You'll provide direct patient care, administer medications, monitor vital signs, and collaborate with physicians on treatment plans. Requirements: active RN license, BSN preferred, 2+ years ICU experience, BLS and ACLS certifications, strong clinical assessment skills. Night shift availability required.",
+    "label": "irrelevant",
+    "category": "clearly-irrelevant"
+  },
+  {
+    "title": "Senior Accountant",
+    "company": "Deloitte",
+    "description": "Deloitte is hiring a Senior Accountant for our audit practice. You'll perform financial statement audits, prepare tax returns, analyze accounting records, and ensure compliance with GAAP standards. Requirements: CPA license, 3+ years public accounting experience, proficiency in QuickBooks and SAP, strong knowledge of tax regulations and financial reporting standards.",
+    "label": "irrelevant",
+    "category": "clearly-irrelevant"
+  },
+  {
+    "title": "Retail Store Manager",
+    "company": "Target",
+    "description": "Lead a team of 50+ associates as a Retail Store Manager. Responsibilities: drive sales performance, manage inventory, handle customer escalations, train and develop team members, ensure visual merchandising standards, and oversee daily store operations. Requirements: 5+ years retail management, strong P&L ownership, excellent leadership and communication skills.",
+    "label": "irrelevant",
+    "category": "clearly-irrelevant"
+  },
+  {
+    "title": "Commercial Truck Driver CDL-A",
+    "company": "Werner Enterprises",
+    "description": "Seeking CDL-A truck drivers for long-haul routes across the continental US. You'll transport goods safely and on time, perform pre-trip inspections, maintain accurate logs, and comply with DOT regulations. Requirements: valid CDL-A license, clean driving record, 1+ year OTR experience, ability to lift 50+ pounds, willingness to be away from home 2-3 weeks.",
+    "label": "irrelevant",
+    "category": "clearly-irrelevant"
+  },
+  {
+    "title": "Engineering Manager, Accelerator Platform",
+    "company": "Anthropic",
+    "description": "Lead a team of 8-12 engineers building Anthropic's accelerator platform. You'll set technical direction, run sprint planning, conduct 1:1s, manage performance reviews, and coordinate cross-team dependencies. Responsibilities include hiring, mentoring, career development, and ensuring team health. You'll spend 80% of your time on people management and 20% on technical strategy. Requirements: 3+ years engineering management, experience scaling teams, strong communication skills.",
+    "label": "irrelevant",
+    "category": "management-false-positive"
+  },
+  {
+    "title": "Channel Manager Team Lead, United States",
+    "company": "JumpCloud",
+    "description": "Lead JumpCloud's channel partner program across the United States. You'll manage relationships with resellers, VARs, and MSPs, develop partner enablement programs, set revenue targets, and coordinate go-to-market strategy. Responsibilities: recruit new partners, negotiate contracts, deliver quarterly business reviews, manage a team of 4 channel account managers. Requirements: 5+ years channel sales, SaaS experience, strong relationship management skills.",
+    "label": "irrelevant",
+    "category": "management-false-positive"
+  },
+  {
+    "title": "Senior Manager, Platform Architecture",
+    "company": "Temporal Technologies",
+    "description": "As Senior Manager of Platform Architecture, you'll lead a team of architects defining Temporal's platform strategy. This is a management role focused on organizational leadership: hiring architects, conducting performance reviews, setting team OKRs, managing cross-functional stakeholder relationships, and driving architectural governance processes. You'll spend most of your time on people leadership rather than hands-on technical work. Requirements: 5+ years engineering leadership, experience managing architect teams.",
+    "label": "irrelevant",
+    "category": "management-false-positive"
+  },
+  {
+    "title": "Controls Engineer - Liberty Works",
+    "company": "Rolls-Royce",
+    "description": "Join Rolls-Royce as a Controls Engineer for our LibertyWorks division. You'll design and implement control systems for jet engine test cells, develop PLC programs using Allen-Bradley and Siemens platforms, integrate sensors and actuators, and perform system validation. Requirements: BS in Electrical or Mechanical Engineering, experience with industrial automation, PLC programming (Ladder Logic, Structured Text), knowledge of pneumatic and hydraulic systems. Active security clearance required.",
+    "label": "irrelevant",
+    "category": "adjacent-wrong-engineering"
+  },
+  {
+    "title": "Senior Hardware Engineer",
+    "company": "Apple",
+    "description": "Design next-generation hardware for Apple products. You'll work on PCB design, signal integrity analysis, power delivery networks, and thermal management. Requirements: MS in Electrical Engineering, 5+ years hardware design experience, proficiency in Altium Designer or Cadence Allegro, experience with high-speed digital interfaces (PCIe, DDR5), knowledge of EMC compliance testing. ASIC/FPGA experience is a plus.",
+    "label": "irrelevant",
+    "category": "adjacent-wrong-engineering"
+  },
+  {
+    "title": "Mechanical Engineer - Robotics",
+    "company": "Boston Dynamics",
+    "description": "Design and optimize mechanical systems for our next-generation robots. You'll work on actuator design, structural analysis, linkage mechanisms, and manufacturing processes. Requirements: MS in Mechanical Engineering, experience with SolidWorks or CATIA, FEA simulation (ANSYS), knowledge of materials science, 3+ years mechanical design for robotic or automation systems. Experience with 3D printing and CNC machining preferred.",
+    "label": "irrelevant",
+    "category": "adjacent-wrong-engineering"
+  },
+  {
+    "title": "Senior DevOps Engineer",
+    "company": "ChowNow",
+    "description": "ChowNow is hiring a Senior DevOps Engineer to build and maintain our cloud infrastructure. You'll manage AWS services, implement CI/CD pipelines with GitHub Actions, automate infrastructure with Terraform, monitor systems with Datadog, and respond to production incidents. Requirements: 5+ years DevOps/SRE experience, strong AWS knowledge, proficiency in Python or Bash scripting, experience with Docker and Kubernetes, understanding of networking and security best practices.",
+    "label": "relevant",
+    "category": "borderline-devops"
+  },
+  {
+    "title": "Cloud Systems Engineer",
+    "company": "Accenture Federal Services",
+    "description": "Design and implement cloud solutions for federal government clients. You'll architect AWS environments, configure VPCs and security groups, implement identity management, and automate deployments. Requirements: 4+ years cloud engineering, AWS Solutions Architect certification preferred, experience with CloudFormation or Terraform, understanding of FedRAMP compliance, active Secret clearance.",
+    "label": "relevant",
+    "category": "borderline-devops"
+  },
+  {
+    "title": "Staff DevOps Engineer",
+    "company": "Crunchyroll LLC",
+    "description": "Join Crunchyroll's platform team as a Staff DevOps Engineer. You'll lead infrastructure initiatives, design scalable deployment architectures, implement observability solutions, and mentor junior engineers. Tech stack: Kubernetes, Terraform, AWS, Go, Python. Requirements: 7+ years DevOps/Platform Engineering, strong coding skills, experience with large-scale distributed systems.",
+    "label": "relevant",
+    "category": "borderline-devops"
+  },
+  {
+    "title": "Site Reliability Engineer",
+    "company": "Cloudflare",
+    "description": "Cloudflare is looking for an SRE to keep our global network running. You'll build automation tools, improve system reliability, participate in on-call rotations, and develop internal tooling. Requirements: strong programming skills in Go or Python, experience with Linux systems administration, understanding of networking (TCP/IP, DNS, HTTP), experience with monitoring and alerting systems. 3+ years SRE or systems engineering experience.",
+    "label": "relevant",
+    "category": "borderline-devops"
+  }
+]

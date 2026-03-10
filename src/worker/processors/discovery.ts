@@ -5,6 +5,7 @@ import { getEnabledAdapters } from '@/lib/adapters/registry'
 import type { AdapterConfig, SourceAdapter } from '@/lib/adapters/types'
 import { computeEmbedding } from '@/lib/ai/embeddings'
 import { getDb } from '@/lib/db/client'
+import { getPreferences } from '@/lib/db/queries/preferences'
 import { getResume } from '@/lib/db/queries/resume'
 import { getSourceApiKey } from '@/lib/db/queries/sources'
 import * as schema from '@/lib/db/schema'
@@ -106,7 +107,19 @@ async function insertNewJobs(jobs: NormalizedJob[]): Promise<void> {
 
 // ─── Score and Update ───────────────────────────────────────────────────────
 
-async function scoreAndUpdateJobs(jobs: NormalizedJob[], resume: ParsedResume): Promise<void> {
+async function loadSalaryTarget(): Promise<number | null> {
+  const prefs = await getPreferences()
+  if (!prefs?.salaryMin) return null
+  return prefs.salaryMax
+    ? Math.round((prefs.salaryMin + prefs.salaryMax) / 2)
+    : prefs.salaryMin
+}
+
+async function scoreAndUpdateJobs(
+  jobs: NormalizedJob[],
+  resume: ParsedResume,
+  salaryTarget: number | null,
+): Promise<void> {
   const db = getDb()
   const BATCH_SIZE = 5
 
@@ -114,7 +127,7 @@ async function scoreAndUpdateJobs(jobs: NormalizedJob[], resume: ParsedResume): 
     const batch = jobs.slice(i, i + BATCH_SIZE)
     await Promise.all(
       batch.map(async (job) => {
-        const { matchScore, matchBreakdown } = await scoreJob(job, resume)
+        const { matchScore, matchBreakdown } = await scoreJob(job, resume, salaryTarget)
         await db
           .update(schema.jobsTable)
           .set({ matchScore, matchBreakdown })
@@ -221,6 +234,7 @@ async function processSource(
   adapter: SourceAdapter,
   adapterConfig: AdapterConfig,
   resume: ParsedResume | null,
+  salaryTarget: number | null,
 ): Promise<{ fetched: number; newCount: number; deduplicated: number }> {
   // 1. Fetch
   log('info', 'pipeline.source.fetch.start', { source: adapter.name })
@@ -272,7 +286,7 @@ async function processSource(
       jobsToScore.push(...dedupResult.updatedNeedScore)
     }
     if (jobsToScore.length > 0) {
-      await scoreAndUpdateJobs(jobsToScore, resume)
+      await scoreAndUpdateJobs(jobsToScore, resume, salaryTarget)
     }
     log('info', 'pipeline.source.score.done', {
       source: adapter.name,
@@ -294,10 +308,11 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
   const { runId, sourceNames } = job.data
   log('info', 'pipeline.run.start', { runId, sources: sourceNames })
 
-  // Load resume and preferences
-  const [resume, preferences] = await Promise.all([
+  // Load resume, preferences, and salary target
+  const [resume, preferences, salaryTarget] = await Promise.all([
     loadResume(),
     loadPreferences(),
+    loadSalaryTarget(),
   ])
 
   if (!resume) {
@@ -324,7 +339,7 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
         preferences,
       }
 
-      const stats = await processSource(adapter, adapterConfig, resume)
+      const stats = await processSource(adapter, adapterConfig, resume, salaryTarget)
 
       await incrementRunCounters(runId, {
         sourcesSucceeded: 1,
