@@ -8,10 +8,10 @@ import {
   type CompanyIntel,
   extractFunding,
   extractGrowth,
+  extractIndustry,
   extractNews,
   extractRating,
   extractSize,
-  extractTechStackFromDescription,
   getCompanyIntel,
   normalizeCompanyName,
   searxQuery,
@@ -89,35 +89,6 @@ describe('company-intel: extractFunding', () => {
   })
 })
 
-describe('company-intel: extractTechStackFromDescription', () => {
-  it('extracts common tech terms from job description', () => {
-    const desc = 'We use React, TypeScript, and Node.js with PostgreSQL and Docker'
-    const result = extractTechStackFromDescription(desc)
-    expect(result).toContain('React')
-    expect(result).toContain('TypeScript')
-    expect(result).toContain('Node.js')
-  })
-
-  it('returns Unknown for text with no tech terms', () => {
-    expect(extractTechStackFromDescription('We are looking for a great team player')).toBe('Unknown')
-  })
-
-  it('caps at 8 tech terms', () => {
-    const desc = 'React TypeScript Node.js PostgreSQL Docker Kubernetes AWS Terraform Python Java Ruby Rust'
-    const result = extractTechStackFromDescription(desc)
-    const terms = result.split(', ')
-    expect(terms.length).toBeLessThanOrEqual(8)
-  })
-
-  it('handles empty description', () => {
-    expect(extractTechStackFromDescription('')).toBe('Unknown')
-  })
-
-  it('handles undefined description', () => {
-    expect(extractTechStackFromDescription(undefined)).toBe('Unknown')
-  })
-})
-
 describe('company-intel: extractGrowth', () => {
   it('extracts revenue growth pattern', () => {
     const text = 'Revenue grew from $1B to $2B in the last year'
@@ -170,6 +141,50 @@ describe('company-intel: extractNews', () => {
     const longText = 'launched ' + 'a'.repeat(200) + ' something great'
     const result = extractNews(longText)
     expect(result.length).toBeLessThanOrEqual(100)
+  })
+})
+
+// ─── Industry Extraction Tests ────────────────────────────────────────────
+
+describe('company-intel: extractIndustry', () => {
+  it('extracts "is a {INDUSTRY} company" pattern', () => {
+    expect(extractIndustry('Stripe is a financial technology company founded in 2010')).toBe('Financial Technology')
+  })
+
+  it('extracts "is an {INDUSTRY} company" pattern', () => {
+    expect(extractIndustry('Kaiser Permanente is an integrated healthcare organization')).toBe('Integrated Healthcare')
+  })
+
+  it('extracts "is a {INDUSTRY} platform" pattern', () => {
+    expect(extractIndustry('Uber is a transportation technology platform connecting riders and drivers')).toBe('Transportation Technology')
+  })
+
+  it('extracts "leading {INDUSTRY} company" pattern', () => {
+    expect(extractIndustry('Google is a leading search and advertising company worldwide')).toBe('Search And Advertising')
+  })
+
+  it('extracts "{INDUSTRY} industry leader" pattern', () => {
+    expect(extractIndustry('Recognized as a renewable energy industry leader in North America')).toBe('Renewable Energy')
+  })
+
+  it('extracts "specializes in {INDUSTRY}" pattern', () => {
+    expect(extractIndustry('The firm specializes in cybersecurity and threat intelligence')).toBe('Cybersecurity And Threat Intelligence')
+  })
+
+  it('returns Unknown for no match', () => {
+    expect(extractIndustry('Just a company doing stuff')).toBe('Unknown')
+  })
+
+  it('returns Unknown for empty text', () => {
+    expect(extractIndustry('')).toBe('Unknown')
+  })
+
+  it('handles industry with slash separator', () => {
+    expect(extractIndustry('Acme is a logistics/supply chain company serving the east coast')).toBe('Logistics/Supply Chain')
+  })
+
+  it('title-cases the result', () => {
+    expect(extractIndustry('Stripe is a FINANCIAL TECHNOLOGY company')).toBe('Financial Technology')
   })
 })
 
@@ -248,7 +263,7 @@ describe('company-intel: cache layer', () => {
       glassdoorRating: '4.5 / 5.0',
       companySize: '1,000 employees',
       funding: '$500M',
-      techStack: 'React, Node.js',
+      industry: 'Financial Technology',
       growth: 'Revenue $100M',
       recentNews: 'launched AI product',
       fetchedAt: new Date('2026-03-01'),
@@ -262,22 +277,21 @@ describe('company-intel: cache layer', () => {
     expect(result.companySize).toBe('1,000 employees')
   })
 
-  it('overrides tech stack from job description on cache hit', async () => {
+  it('returns industry from cache on cache hit', async () => {
     const cached: CompanyIntel = {
       glassdoorRating: '4.0 / 5.0',
       companySize: '500 employees',
       funding: 'Unknown',
-      techStack: 'Unknown',
+      industry: 'Financial Technology',
       growth: 'Unknown',
       recentNews: 'Unknown',
       fetchedAt: new Date('2026-03-01'),
     }
     mockRedis.get.mockResolvedValue(JSON.stringify(cached))
 
-    const result = await getCompanyIntel('TestCorp', 'We use React and TypeScript with Docker')
+    const result = await getCompanyIntel('TestCorp')
 
-    expect(result.techStack).toContain('React')
-    expect(result.techStack).toContain('TypeScript')
+    expect(result.industry).toBe('Financial Technology')
   })
 
   it('returns Unknown fields when cache miss and SearXNG fails', async () => {
@@ -430,14 +444,13 @@ describe('company-intel: fallback chain', () => {
     expect(result.glassdoorRating).toBe('Unknown')
   })
 
-  it('tech stack always extracted from job description regardless of source', async () => {
+  it('industry defaults to Unknown when no SearXNG data available', async () => {
     mockRedis.get.mockResolvedValue(null)
     fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('down'))
 
-    const result = await getCompanyIntel('TestCorp', 'Looking for Python and Django developers')
+    const result = await getCompanyIntel('TestCorp')
 
-    expect(result.techStack).toContain('Python')
-    expect(result.techStack).toContain('Django')
+    expect(result.industry).toBe('Unknown')
   })
 })
 
@@ -552,7 +565,7 @@ describe('company-intel: Redis TTL behavior', () => {
       glassdoorRating: '3.0 / 5.0',
       companySize: 'Unknown',
       funding: 'Unknown',
-      techStack: 'Unknown',
+      industry: 'Unknown',
       growth: 'Unknown',
       recentNews: 'Unknown',
       fetchedAt: new Date('2026-03-01'),

@@ -73,9 +73,21 @@ export async function startWorker() {
   })
 
   // Graceful shutdown on Docker stop / SIGTERM
+  let shuttingDown = false
   const shutdown = async () => {
+    if (shuttingDown) return
+    shuttingDown = true
     log('info', 'worker.shutdown')
-    await Promise.all([worker.close(), rescoreWorker.close()])
+
+    // Hard exit fallback in case graceful close hangs
+    const killTimer = setTimeout(() => process.exit(0), 5000)
+    killTimer.unref()
+
+    try {
+      await Promise.all([worker.close(), rescoreWorker.close()])
+    } catch {
+      // Ignore errors during shutdown
+    }
     process.exit(0)
   }
   process.on('SIGTERM', shutdown)

@@ -108,34 +108,47 @@ const YEAR_RANGE_PATTERN =
 const COMPANY_HEADER_PATTERN =
   /^([A-Z][A-Z\s.&',()-]+?)(?:\s*[•·|]\s*|\s{2,})[\w\s,]+(?:\t|\s{2,}).*\d{4}/
 
-// Job title role words (the noun that defines the role)
-const TITLE_ROLE_WORDS = [
-  'engineer', 'developer', 'manager', 'director', 'architect', 'analyst',
-  'designer', 'consultant', 'specialist', 'coordinator', 'administrator',
-  'officer', 'scientist', 'researcher', 'intern', 'associate', 'sdet',
-]
-
-// Seniority/modifier words that appear before the role word
+// Seniority/modifier words that appear before the role word (universal, not domain-specific)
 const TITLE_MODIFIER_WORDS = [
   'lead', 'senior', 'staff', 'principal', 'vp', 'head', 'junior', 'chief',
   'sr', 'jr',
 ]
 
+/**
+ * Structural heuristics for title detection — domain-agnostic.
+ * Uses line length, title case ratio, seniority modifiers, and verb penalties
+ * instead of a hardcoded list of role words.
+ */
 function titleScore(line: string): number {
-  const lower = line.toLowerCase()
   if (line.length > 80 || line.length < 5) return 0
+  const trimmed = line.trim()
+  const words = trimmed.split(/\s+/)
+  const wordCount = words.length
   let score = 0
-  // Strong signal: contains a role word
-  if (TITLE_ROLE_WORDS.some((kw) => lower.includes(kw))) score += 2
-  // Bonus: contains a seniority modifier
-  if (TITLE_MODIFIER_WORDS.some((kw) => lower.split(/\s+/).includes(kw))) score += 1
-  // Penalty: starts with a verb (likely a bullet point)
-  if (/^(led|built|created|developed|designed|implemented|established|collaborated|served|facilitated|performed|won|leveraged|instrumented|stood|making|architected)/i.test(lower)) score -= 3
-  return score
-}
 
-function looksLikeTitle(line: string): boolean {
-  return titleScore(line) >= 2
+  // Primary: short line (2-8 words) — title-length
+  if (wordCount >= 2 && wordCount <= 8) score += 1
+
+  // Secondary: title case — significant words (≥3 chars) starting with capital
+  const significantWords = words.filter((w) => w.length >= 3)
+  if (significantWords.length > 0) {
+    const capitalizedCount = significantWords.filter((w) => /^[A-Z]/.test(w)).length
+    const ratio = capitalizedCount / significantWords.length
+    if (ratio >= 1.0) score += 2      // ALL significant words capitalized → strong title signal
+    else if (ratio >= 0.5) score += 1  // MOST capitalized → weak title signal
+  }
+
+  // Bonus: seniority modifier (universal, not domain-specific)
+  const lower = trimmed.toLowerCase()
+  if (TITLE_MODIFIER_WORDS.some((kw) => lower.split(/\s+/).includes(kw))) score += 1
+
+  // Penalty: starts with action verb (likely a bullet point)
+  if (/^(led|built|created|developed|designed|implemented|established|collaborated|served|facilitated|performed|won|leveraged|instrumented|stood|making|architected)/i.test(lower)) score -= 3
+
+  // Penalty: ends with period (descriptions end with periods, titles don't)
+  if (trimmed.endsWith('.')) score -= 1
+
+  return score
 }
 
 function parseYearsFromRange(match: RegExpMatchArray): number | null {

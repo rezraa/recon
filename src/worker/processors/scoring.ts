@@ -75,11 +75,21 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           pipelineStage: dbJob.pipelineStage ?? 'discovered',
         }
 
-        const { matchScore, matchBreakdown } = await scoreJob(normalizedJob, resume, salaryTarget)
+        // Pass cached extracted requirements to avoid re-extraction via LLM
+        const cachedReqs = Array.isArray(dbJob.extractedRequirements)
+          ? dbJob.extractedRequirements as string[]
+          : null
+        const { matchScore, matchBreakdown, extractedRequirements } = await scoreJob(
+          normalizedJob, resume, salaryTarget, cachedReqs,
+        )
 
         await db
           .update(schema.jobsTable)
-          .set({ matchScore, matchBreakdown })
+          .set({
+            matchScore,
+            matchBreakdown,
+            ...(extractedRequirements ? { extractedRequirements } : {}),
+          })
           .where(
             and(
               eq(schema.jobsTable.sourceName, dbJob.sourceName),

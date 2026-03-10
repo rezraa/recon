@@ -159,7 +159,7 @@ vi.mock('@/lib/pipeline/scoring', () => ({
       matchScore: 75,
       matchBreakdown: {
         skills: { score: 80, weight: 0.35, signals: { keyword: 0.8, semantic: null } },
-        techStack: { score: 75, weight: 0.25, signals: { keyword: 0.75, semantic: null } },
+        requirements: { score: 75, weight: 0.25, signals: { keyword: 0.75, semantic: null } },
         experience: { score: 70, weight: 0.20, signals: { keyword: null, semantic: 0.7 } },
         salary: { score: 50, weight: 0.20, signals: { keyword: null, semantic: null } },
       },

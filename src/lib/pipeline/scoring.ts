@@ -8,7 +8,7 @@ import type { MatchBreakdown, NormalizedJob } from './types'
 
 export const WEIGHTS = {
   skills: 0.35,
-  techStack: 0.25,
+  requirements: 0.25,
   experience: 0.20,
   salary: 0.20,
 } as const
@@ -111,61 +111,61 @@ export function computeSkills(resumeSkills: string[], jobText: string): SkillsRe
   }
 }
 
-// ─── Tech Stack Axis (Job's tech terms covered by resume) ────────────────
+// ─── Requirements Axis (LLM-extracted job requirements covered by resume) ─
 
-// Curated set of real tech terms. Excludes ambiguous short terms
-// (r, go, ci, cd, less, gin, rest) that match common English words.
-const KNOWN_TECH = new Set([
-  // Languages
-  'javascript', 'typescript', 'python', 'java', 'kotlin', 'golang', 'ruby', 'rust',
-  'swift', 'c#', 'c++', 'php', 'scala', 'elixir', 'clojure', 'haskell', 'dart', 'lua',
-  // Frontend
-  'react', 'angular', 'vue', 'svelte', 'next.js', 'nextjs', 'nuxt', 'gatsby', 'remix',
-  'tailwind', 'webpack', 'vite', 'esbuild',
-  // Backend
-  'node.js', 'nodejs', 'express', 'fastify', 'django', 'flask', 'rails', 'spring boot',
-  'nest.js', 'nestjs', 'graphql', 'grpc', 'nats',
-  // Data
-  'postgresql', 'postgres', 'mysql', 'mongodb', 'redis', 'elasticsearch', 'dynamodb',
-  'cassandra', 'sqlite', 'nosql', 'snowflake', 'bigquery', 'redshift',
-  // Cloud/Infra
-  'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible',
-  'cloudformation', 'pulumi', 'helm', 'istio', 'nginx', 'apache', 'linux',
-  // CI/CD & Tools
-  'jenkins', 'github actions', 'gitlab', 'circleci', 'ci/cd',
-  'github', 'bitbucket', 'jira', 'confluence',
-  // Testing
-  'selenium', 'playwright', 'cypress', 'jest', 'vitest', 'mocha', 'pytest',
-  'appium', 'postman', 'k6', 'locust', 'gatling',
-  // ML/AI
-  'tensorflow', 'pytorch', 'scikit-learn', 'pandas', 'numpy', 'spark', 'airflow',
-  'kafka', 'rabbitmq', 'celery', 'openai', 'langchain',
-  // Other
-  'figma', 'storybook', 'datadog', 'splunk', 'grafana', 'prometheus', 'new relic',
-  'sentry', 'pagerduty', 'vercel', 'netlify', 'heroku',
-  'bullmq', 'sidekiq', 'ecs', 'fargate', 'lambda', 'rds',
-  'cloudwatch', 'sns', 'sqs', 'kinesis',
-])
-
-export interface TechResult {
+export interface RequirementsResult {
   score: number
   covered: string[]
   jobTerms: string[]
 }
 
-export function computeTechStack(resumeSkills: string[], jobText: string): TechResult {
-  const jobLower = jobText.toLowerCase()
-
-  const jobTerms: string[] = []
-  for (const term of KNOWN_TECH) {
-    if (/[^a-z\s]/.test(term)) {
-      if (jobLower.includes(term)) jobTerms.push(term)
-    } else {
-      const regex = new RegExp(`\\b${term}\\b`, 'i')
-      if (regex.test(jobText)) jobTerms.push(term)
-    }
+/**
+ * Extract skills/qualifications from a job description using the Qwen LLM.
+ * Returns a list of specific requirements (e.g., ["TypeScript", "AWS", "5+ years experience"]).
+ * Throws if LLM is unavailable.
+ */
+export async function extractJobRequirements(jobText: string): Promise<string[]> {
+  if (!isModelAvailable()) {
+    throw new Error(
+      'LLM model not found. Run `./run.sh` to download the Qwen 3.5 2B model, or set LLM_MODEL_PATH.',
+    )
   }
 
+  const llm = await getLLMModel()
+  if (!llm) {
+    throw new Error('Failed to load LLM model.')
+  }
+
+  const prompt = `List the specific skills, tools, technologies, certifications, and qualifications required in this job description. Output ONLY a comma-separated list.\n\n${stripBoilerplate(jobText).slice(0, 800)}`
+
+  const context = await llm.createContext()
+  try {
+    const session = llm.createSession(context)
+    const response = await session.prompt(prompt, { maxTokens: 100, temperature: 0 })
+
+    // Parse comma-separated response into array
+    const terms = response
+      .split(',')
+      .map(t => t.trim().replace(/^[-•*\d.)\s]+/, '').trim()) // strip bullet/number prefixes
+      .filter(t => t.length > 1 && t.length < 60 && !/^\d+$/.test(t)) // reject empty, too long, or bare numbers
+
+    // If LLM returned fewer than 2 terms, the response was likely malformed
+    if (terms.length < 2) {
+      console.warn('[extractJobRequirements] LLM returned fewer than 2 terms, returning empty')
+      return []
+    }
+
+    return terms
+  } finally {
+    await llm.disposeContext(context)
+  }
+}
+
+/**
+ * Compute what percentage of the job's requirements are covered by the resume.
+ * Same coverage math as the old computeTechStack but with dynamic LLM-extracted terms.
+ */
+export function computeRequirements(resumeSkills: string[], jobTerms: string[]): RequirementsResult {
   if (jobTerms.length === 0 || resumeSkills.length === 0) {
     return { score: 0, covered: [], jobTerms }
   }
@@ -180,15 +180,18 @@ export function computeTechStack(resumeSkills: string[], jobText: string): TechR
   }
 
   const covered = jobTerms.filter(term => {
-    if (resumeWords.has(term)) return true
-    return resumeLower.some(skill => skill.includes(term) || term.includes(skill))
+    const termLower = term.toLowerCase()
+    if (resumeWords.has(termLower)) return true
+    // Substring matching — only for terms ≥ 3 chars to avoid false positives (e.g., "AI" matching "maintain")
+    if (termLower.length < 3) return false
+    return resumeLower.some(skill =>
+      skill.length >= 3 && (skill.includes(termLower) || termLower.includes(skill)),
+    )
   })
 
   // Minimum effective denominator prevents small-denominator inflation.
-  // A job with 1 tech term and 1 match should NOT score 100% —
-  // real software jobs have 4+ tech terms. This caps 1/1 at 25%.
-  const MIN_TECH_TERMS = 4
-  const effectiveDenom = Math.max(jobTerms.length, MIN_TECH_TERMS)
+  const MIN_TERMS = 4
+  const effectiveDenom = Math.max(jobTerms.length, MIN_TERMS)
 
   return {
     score: Math.round((covered.length / effectiveDenom) * 100),
@@ -256,7 +259,7 @@ export function computeSalary(
 
 export interface Axes {
   skills: number
-  techStack: number
+  requirements: number
   experience: number
   salary: number
 }
@@ -264,7 +267,7 @@ export interface Axes {
 function computeWeightedScore(axes: Axes): number {
   const raw =
     axes.skills * WEIGHTS.skills +
-    axes.techStack * WEIGHTS.techStack +
+    axes.requirements * WEIGHTS.requirements +
     axes.experience * WEIGHTS.experience +
     axes.salary * WEIGHTS.salary
 
@@ -294,12 +297,12 @@ export function buildNudgePrompt(
   mathAxes: Axes,
 ): string {
   const s = Math.round(mathAxes.skills / 10)
-  const t = Math.round(mathAxes.techStack / 10)
+  const t = Math.round(mathAxes.requirements / 10)
   const e = Math.round(mathAxes.experience / 10)
 
   return `A scoring system rated this candidate-job match. Review and adjust each score. Output ONLY 3 lines, no other text.
 
-Initial scores — Skills: ${s}/10, Tech: ${t}/10, Experience: ${e}/10
+Initial scores — Skills: ${s}/10, Requirements: ${t}/10, Experience: ${e}/10
 
 Candidate: ${resumeText.slice(0, 300)}
 Job: ${jobTitle} - ${stripBoilerplate(jobDesc).slice(0, 500)}
@@ -318,18 +321,18 @@ Skills:`
 export function parseNudgeResponse(response: string, mathAxes: Axes): Axes | null {
   const full = response.startsWith('Skills') ? response : 'Skills: ' + response
   const skillsMatch = full.match(/Skills:\s*(\d{1,2})/i)
-  const techMatch = full.match(/Tech(?:\s*Stack)?:\s*(\d{1,2})/i)
+  const reqMatch = full.match(/Requirements?:\s*(\d{1,2})/i) ?? full.match(/Tech(?:\s*Stack)?:\s*(\d{1,2})/i)
   const expMatch = full.match(/Experience:\s*(\d{1,2})/i)
 
   if (!skillsMatch) return null
 
   const s = Math.min(10, parseInt(skillsMatch[1], 10)) * 10
-  const t = techMatch ? Math.min(10, parseInt(techMatch[1], 10)) * 10 : mathAxes.techStack
+  const t = reqMatch ? Math.min(10, parseInt(reqMatch[1], 10)) * 10 : mathAxes.requirements
   const e = expMatch ? Math.min(10, parseInt(expMatch[1], 10)) * 10 : mathAxes.experience
 
   return {
     skills: clampNudge(s, mathAxes.skills),
-    techStack: clampNudge(t, mathAxes.techStack),
+    requirements: clampNudge(t, mathAxes.requirements),
     experience: clampNudge(e, mathAxes.experience),
     salary: mathAxes.salary, // LLM doesn't touch salary — it's objective
   }
@@ -389,10 +392,10 @@ function buildBreakdown(axes: Axes): MatchBreakdown {
       weight: WEIGHTS.skills,
       signals: { keyword: axes.skills / 100, semantic: null },
     },
-    techStack: {
-      score: axes.techStack,
-      weight: WEIGHTS.techStack,
-      signals: { keyword: axes.techStack / 100, semantic: null },
+    requirements: {
+      score: axes.requirements,
+      weight: WEIGHTS.requirements,
+      signals: { keyword: axes.requirements / 100, semantic: null },
     },
     experience: {
       score: axes.experience,
@@ -411,30 +414,44 @@ function buildBreakdown(axes: Axes): MatchBreakdown {
 
 /**
  * Score a job using math-first hybrid approach:
- * 1. Math scoring: keyword overlap (skills, tech), embedding similarity (experience), salary fit
+ * 1. Math scoring: keyword overlap (skills), LLM-extracted requirements coverage, embedding similarity (experience), salary fit
  * 2. Tier assignment: <15 REJECT (skip LLM), 15-45 UNLIKELY (cap 50), 45+ POSSIBLE
  * 3. LLM nudge: bounded ±10 per axis, zero-lock on zero-evidence axes
  * 4. Salary-in-range boost: 1.15x when salary is a perfect match
  *
  * LLM model is required — throws if unavailable.
+ *
+ * @param jobRequirements - Pre-extracted job requirements (cached from DB). If not provided, will be extracted via LLM.
  */
 export async function scoreJob(
   job: NormalizedJob,
   resume: ParsedResume,
   userSalaryTarget?: number | null,
-): Promise<{ matchScore: number; matchBreakdown: MatchBreakdown }> {
+  jobRequirements?: string[] | null,
+): Promise<{ matchScore: number; matchBreakdown: MatchBreakdown; extractedRequirements?: string[] }> {
   const cleanDesc = stripBoilerplate(job.descriptionText)
   const fullText = `${job.title} ${cleanDesc}`
 
   // Step 1: Math scoring
   const skillsResult = computeSkills(resume.skills, fullText)
-  const techResult = computeTechStack(resume.skills, fullText)
+
+  // Requirements: use cached terms if available, otherwise extract via LLM
+  let reqTerms: string[]
+  let newlyExtracted = false
+  if (jobRequirements && jobRequirements.length > 0) {
+    reqTerms = jobRequirements
+  } else {
+    reqTerms = await extractJobRequirements(job.descriptionText)
+    newlyExtracted = true
+  }
+  const reqResult = computeRequirements(resume.skills, reqTerms)
+
   const expScore = await computeExperience(resume, fullText)
   const salaryResult = computeSalary(userSalaryTarget ?? null, job.salaryMin, job.salaryMax)
 
   let axes: Axes = {
     skills: skillsResult.score,
-    techStack: techResult.score,
+    requirements: reqResult.score,
     experience: expScore,
     salary: salaryResult.score,
   }
@@ -454,7 +471,7 @@ export async function scoreJob(
         const scale = 50 / nudgedScore
         axes = {
           skills: Math.round(axes.skills * scale),
-          techStack: Math.round(axes.techStack * scale),
+          requirements: Math.round(axes.requirements * scale),
           experience: Math.round(axes.experience * scale),
           salary: Math.round(axes.salary * scale),
         }
@@ -465,5 +482,9 @@ export async function scoreJob(
   const matchBreakdown = buildBreakdown(axes)
   const matchScore = computeWeightedScore(axes)
 
-  return { matchScore, matchBreakdown }
+  return {
+    matchScore,
+    matchBreakdown,
+    ...(newlyExtracted ? { extractedRequirements: reqTerms } : {}),
+  }
 }

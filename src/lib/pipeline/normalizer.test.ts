@@ -2,28 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { RawJobListing } from '@/lib/adapters/types'
 
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn(),
-}))
-
-vi.mock('@/lib/ai/models', () => ({
-  getZeroShotClassifier: vi.fn().mockResolvedValue(
-    vi.fn().mockImplementation((text: string) => {
-      const lower = text.toLowerCase()
-      const hasBenefitContent = /insurance|health|401k|retirement|vacation|pto|medical|coverage|equity|remote|parental|wellness|tuition|bonus|leave|dental|vision|compensation/.test(lower)
-      if (hasBenefitContent) {
-        return Promise.resolve({
-          labels: ['health insurance', 'paid time off', 'retirement benefits', 'equity compensation', 'remote work', 'parental leave', 'professional development', 'wellness benefits'],
-          scores: [0.9, 0.8, 0.7, 0.3, 0.2, 0.1, 0.05, 0.02],
-        })
-      }
-      return Promise.resolve({
-        labels: ['health insurance', 'paid time off', 'retirement benefits', 'equity compensation', 'remote work', 'parental leave', 'professional development', 'wellness benefits'],
-        scores: [0.1, 0.1, 0.05, 0.05, 0.02, 0.02, 0.01, 0.01],
-      })
-    }),
-  ),
-}))
+// No ML model mocks needed — benefits extraction is now section-based
 
 import { normalize } from './normalizer'
 
@@ -225,20 +204,20 @@ describe('normalize', () => {
     })
   })
 
-  describe('benefits extraction', () => {
-    it('[P1] should extract benefits from description text via zero-shot classification', async () => {
+  describe('benefits extraction (section-based)', () => {
+    it('[P1] should extract benefits from a Benefits section', async () => {
       const { normalized } = await normalize([
         createRawListing({
-          description_text: 'We offer comprehensive health insurance, 401k retirement matching, and unlimited vacation days.',
+          description_text: 'Build amazing software.\nBenefits\n- Comprehensive health insurance\n- 401k retirement matching\n- Unlimited vacation days',
         }),
       ])
       expect(normalized[0].benefits).toBeDefined()
-      expect(normalized[0].benefits!.length).toBeGreaterThan(0)
-      // The mock returns health insurance, paid time off, retirement benefits as high scores
-      expect(normalized[0].benefits).toContain('health insurance')
+      expect(normalized[0].benefits!.length).toBe(3)
+      expect(normalized[0].benefits).toContain('Comprehensive health insurance')
+      expect(normalized[0].benefits).toContain('401k retirement matching')
     })
 
-    it('[P1] should return undefined when no benefits found', async () => {
+    it('[P1] should return undefined when no benefits section found', async () => {
       const { normalized } = await normalize([
         createRawListing({
           description_text: 'Build amazing software products.',
@@ -247,14 +226,36 @@ describe('normalize', () => {
       expect(normalized[0].benefits).toBeUndefined()
     })
 
-    it('[P1] should classify paraphrased benefits (zero-shot)', async () => {
+    it('[P1] should extract from "What We Offer" section', async () => {
       const { normalized } = await normalize([
         createRawListing({
-          description_text: 'We provide four weeks vacation and comprehensive medical coverage for all employees.',
+          description_text: 'Join our team.\nWhat We Offer\n• Four weeks paid vacation\n• Comprehensive medical coverage\n• Equity compensation',
         }),
       ])
-      // The mock classifier should categorize these into standard labels
       expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(3)
+    })
+
+    it('[P1] should extract non-tech benefits (trades, healthcare)', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_text: 'Requirements: Valid license.\nBenefits\n- Free PPE and tools provided\n- Shift differentials for night shifts\n- Union benefits package\n- Company vehicle for job sites',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(4)
+      expect(normalized[0].benefits).toContain('Free PPE and tools provided')
+      expect(normalized[0].benefits).toContain('Shift differentials for night shifts')
+    })
+
+    it('[P1] should extract from "Compensation & Benefits" section', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_text: 'About the role.\nCompensation & Benefits\n- Competitive salary\n- Stock options\n- Remote work flexibility',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(3)
     })
   })
 

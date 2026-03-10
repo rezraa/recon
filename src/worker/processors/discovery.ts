@@ -128,10 +128,14 @@ async function scoreAndUpdateJobs(
     const batch = jobs.slice(i, i + BATCH_SIZE)
     await Promise.all(
       batch.map(async (job) => {
-        const { matchScore, matchBreakdown } = await scoreJob(job, resume, salaryTarget)
+        const { matchScore, matchBreakdown, extractedRequirements } = await scoreJob(job, resume, salaryTarget)
         await db
           .update(schema.jobsTable)
-          .set({ matchScore, matchBreakdown })
+          .set({
+            matchScore,
+            matchBreakdown,
+            ...(extractedRequirements ? { extractedRequirements } : {}),
+          })
           .where(
             and(
               eq(schema.jobsTable.sourceName, job.sourceName),

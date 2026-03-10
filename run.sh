@@ -30,10 +30,13 @@ fi
 
 if [ "${1:-}" = "nuke" ]; then
   warn "Nuking everything (containers + volumes + data)..."
-  # Kill any running dev server and worker processes
+  # Kill only recon dev server and worker processes (avoid killing unrelated node processes like VS Code)
   pkill -f "next dev" 2>/dev/null || true
-  pkill -f "tsx.*worker" 2>/dev/null || true
-  pkill -f "node.*worker" 2>/dev/null || true
+  pkill -f "tsx.*src/worker" 2>/dev/null || true
+  # Wait for processes to actually exit before tearing down containers
+  sleep 1
+  pkill -9 -f "next dev" 2>/dev/null || true
+  pkill -9 -f "tsx.*src/worker" 2>/dev/null || true
   sleep 1
   $DC down -v
   info "All containers, volumes, and data removed."

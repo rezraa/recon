@@ -1,7 +1,7 @@
 /**
  * Company Intelligence Service
  *
- * Extracts company information (Glassdoor rating, size, funding, tech stack,
+ * Extracts company information (Glassdoor rating, size, funding, industry,
  * growth, recent news) via SearXNG queries and regex parsing.
  *
  * Fallback chain: Redis cache → seed file → SearXNG → "Unknown"
@@ -20,7 +20,7 @@ export interface CompanyIntel {
   glassdoorRating: string
   companySize: string
   funding: string
-  techStack: string
+  industry: string
   growth: string
   recentNews: string
   fetchedAt: Date
@@ -190,49 +190,44 @@ export function extractNews(text: string): string {
   return m ? m[1].trim().slice(0, 100) : 'Unknown'
 }
 
-// ─── Tech Stack Extraction from Job Description ──────────────────────────
+// ─── Industry Extraction from SearXNG Text ───────────────────────────────
 
-const TECH_TERMS = [
-  'React', 'Angular', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Gatsby', 'Remix',
-  'TypeScript', 'JavaScript', 'Python', 'Java', 'Kotlin', 'Go', 'Rust', 'Ruby',
-  'Swift', 'C#', 'C++', 'PHP', 'Scala', 'Elixir',
-  'Node.js', 'Express', 'FastAPI', 'Django', 'Flask', 'Rails', 'Spring Boot',
-  'NestJS', 'GraphQL', 'gRPC',
-  'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Elasticsearch', 'DynamoDB',
-  'Cassandra', 'SQLite', 'Snowflake', 'BigQuery',
-  'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Terraform', 'Ansible',
-  'Helm', 'Nginx', 'Linux',
-  'Jenkins', 'GitHub Actions', 'GitLab', 'CircleCI',
-  'Selenium', 'Playwright', 'Cypress', 'Jest', 'Vitest', 'Pytest',
-  'TensorFlow', 'PyTorch', 'Pandas', 'NumPy', 'Spark', 'Airflow',
-  'Kafka', 'RabbitMQ', 'OpenAI', 'LangChain',
-  'Figma', 'Storybook', 'Datadog', 'Grafana', 'Prometheus', 'Sentry',
-  'Vercel', 'Netlify', 'Tailwind', 'Webpack', 'Vite',
-]
+export function extractIndustry(text: string): string {
+  if (!text) return 'Unknown'
 
-// Pre-compiled matchers for tech terms (avoid creating RegExp objects on every call)
-const TECH_MATCHERS: Array<{ term: string; test: (text: string) => boolean }> = TECH_TERMS.map(
-  (term) => {
-    if (/[^a-zA-Z\s]/.test(term)) {
-      const lower = term.toLowerCase()
-      return { term, test: (text: string) => text.toLowerCase().includes(lower) }
-    }
-    const regex = new RegExp(`\\b${term}\\b`, 'i')
-    return { term, test: (text: string) => regex.test(text) }
-  },
-)
+  // Pattern: "leading {INDUSTRY} company/provider/platform" — check before "is a" to avoid capturing "leading" in the industry phrase
+  const leading = text.match(
+    /leading\s+([A-Za-z][A-Za-z\s/&-]{2,50}?)\s+(?:company|platform|provider|firm|organization|startup|business)/i,
+  )
+  if (leading) return toTitleCase(leading[1].trim())
 
-export function extractTechStackFromDescription(description?: string): string {
-  if (!description) return 'Unknown'
+  // Pattern: "{Company} is a(n) {INDUSTRY} company/platform/provider/firm/organization"
+  const isA = text.match(
+    /is\s+an?\s+([A-Za-z][A-Za-z\s/&-]{2,50}?)\s+(?:company|platform|provider|firm|organization|startup|leader|business)/i,
+  )
+  if (isA) return toTitleCase(isA[1].trim())
 
-  const found: string[] = []
-  for (const { term, test } of TECH_MATCHERS) {
-    if (test(description)) {
-      found.push(term)
-    }
-  }
+  // Pattern: "{INDUSTRY} industry leader"
+  const leader = text.match(
+    /\b(?:a|an|the)\s+([A-Za-z][A-Za-z\s/&-]{2,40}?)\s+industry\s+leader/i,
+  ) ?? text.match(
+    /([A-Za-z][A-Za-z\s/&-]{2,40}?)\s+industry\s+leader/i,
+  )
+  if (leader) return toTitleCase(leader[1].trim())
 
-  return found.length > 0 ? found.slice(0, 8).join(', ') : 'Unknown'
+  // Pattern: "specializes in {INDUSTRY}"
+  const specializes = text.match(
+    /specializes?\s+in\s+([A-Za-z][A-Za-z\s/&-]{2,50})(?:\.|,|$)/i,
+  )
+  if (specializes) return toTitleCase(specializes[1].trim())
+
+  return 'Unknown'
+}
+
+function toTitleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/(?:^|[\s/])\S/g, (c) => c.toUpperCase())
 }
 
 // ─── Seed File Loader ─────────────────────────────────────────────────────
@@ -267,7 +262,7 @@ function loadSeedData(): Map<string, CompanyIntel> {
           glassdoorRating: entry.glassdoorRating,
           companySize: entry.companySize,
           funding: entry.funding,
-          techStack: entry.techStack,
+          industry: entry.industry,
           growth: entry.growth,
           recentNews: entry.recentNews,
           fetchedAt: seededAt,
@@ -320,7 +315,7 @@ export async function _resetCacheFor(companyName: string): Promise<void> {
 
 // ─── SearXNG Extraction ──────────────────────────────────────────────────
 
-async function fetchFromSearXNG(companyName: string): Promise<Omit<CompanyIntel, 'techStack' | 'fetchedAt'> | null> {
+async function fetchFromSearXNG(companyName: string): Promise<Omit<CompanyIntel, 'fetchedAt'> | null> {
   try {
     // Sequential to respect rate limiter (each call throttles independently)
     const ratingText = await searxQuery(`${companyName} glassdoor rating`)
@@ -335,6 +330,7 @@ async function fetchFromSearXNG(companyName: string): Promise<Omit<CompanyIntel,
       funding: extractFunding(infoText),
       growth: extractGrowth(infoText),
       recentNews: extractNews(infoText),
+      industry: extractIndustry(infoText),
     }
   } catch {
     return null
@@ -343,7 +339,7 @@ async function fetchFromSearXNG(companyName: string): Promise<Omit<CompanyIntel,
 
 // ─── Observability ───────────────────────────────────────────────────────
 
-const INTEL_FIELDS = ['glassdoorRating', 'companySize', 'funding', 'growth', 'recentNews'] as const
+const INTEL_FIELDS = ['glassdoorRating', 'companySize', 'funding', 'industry', 'growth', 'recentNews'] as const
 
 function logFieldHitRates(company: string, intel: CompanyIntel, source: string): void {
   const unknownFields = INTEL_FIELDS.filter((f) => intel[f] === 'Unknown')
@@ -358,47 +354,32 @@ function logFieldHitRates(company: string, intel: CompanyIntel, source: string):
 
 export async function getCompanyIntel(
   companyName: string,
-  jobDescription?: string,
+  options?: { skipSeed?: boolean },
 ): Promise<CompanyIntel> {
   // 1. Redis cache
   const cached = await getFromCache(companyName)
-  if (cached) {
-    // Override tech stack from job description if available
-    if (jobDescription) {
-      const techStack = extractTechStackFromDescription(jobDescription)
-      if (techStack !== 'Unknown') {
-        cached.techStack = techStack
-      }
-    }
-    return cached
-  }
+  if (cached) return cached
 
-  // 2. Seed file
-  const seedData = loadSeedData()
-  const seeded = seedData.get(normalizeCompanyName(companyName))
-  if (seeded) {
-    const result = { ...seeded }
-    if (jobDescription) {
-      const techStack = extractTechStackFromDescription(jobDescription)
-      if (techStack !== 'Unknown') {
-        result.techStack = techStack
-      }
+  // 2. Seed file (skipped on force-refresh so SearXNG is always hit)
+  if (!options?.skipSeed) {
+    const seedData = loadSeedData()
+    const seeded = seedData.get(normalizeCompanyName(companyName))
+    if (seeded) {
+      const result = { ...seeded }
+      // Cache seed data in Redis for fast subsequent lookups
+      await setInCache(companyName, result)
+      logFieldHitRates(companyName, result, 'seed')
+      return result
     }
-    // Cache seed data in Redis for fast subsequent lookups
-    await setInCache(companyName, result)
-    logFieldHitRates(companyName, result, 'seed')
-    return result
   }
 
   // 3. SearXNG query
   const searxResult = await fetchFromSearXNG(companyName)
-  const techStack = extractTechStackFromDescription(jobDescription)
   const now = new Date()
 
   if (searxResult) {
     const intel: CompanyIntel = {
       ...searxResult,
-      techStack,
       fetchedAt: now,
     }
     await setInCache(companyName, intel)
@@ -411,7 +392,7 @@ export async function getCompanyIntel(
     glassdoorRating: 'Unknown',
     companySize: 'Unknown',
     funding: 'Unknown',
-    techStack,
+    industry: 'Unknown',
     growth: 'Unknown',
     recentNews: 'Unknown',
     fetchedAt: now,

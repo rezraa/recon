@@ -204,7 +204,7 @@ describe.skipIf(skipInCI)('scoring integration — math-first hybrid calibration
 
         const axes = [
           matchBreakdown.skills.score,
-          matchBreakdown.techStack.score,
+          matchBreakdown.requirements.score,
           matchBreakdown.experience.score,
           matchBreakdown.salary.score,
         ]
@@ -213,7 +213,7 @@ describe.skipIf(skipInCI)('scoring integration — math-first hybrid calibration
         const variance = axes.reduce((sum, v) => sum + (v - mean) ** 2, 0) / axes.length
 
         console.log(
-          `  [differentiation] ${labeled.title}: Skills=${matchBreakdown.skills.score} Tech=${matchBreakdown.techStack.score} Exp=${matchBreakdown.experience.score} Salary=${matchBreakdown.salary.score} (var=${variance.toFixed(1)})`,
+          `  [differentiation] ${labeled.title}: Skills=${matchBreakdown.skills.score} Req=${matchBreakdown.requirements.score} Exp=${matchBreakdown.experience.score} Salary=${matchBreakdown.salary.score} (var=${variance.toFixed(1)})`,
         )
 
         if (variance > 5) anyDifferentiated = true

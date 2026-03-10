@@ -19,9 +19,9 @@ import type { NormalizedJob } from '@/lib/pipeline/types'
 
 import {
   buildNudgePrompt,
+  computeRequirements,
   computeSalary,
   computeSkills,
-  computeTechStack,
   parseNudgeResponse,
   scoreJob,
   stripBoilerplate,
@@ -31,7 +31,7 @@ const mockIsModelAvailable = vi.mocked(isModelAvailable)
 const mockGetLLMModel = vi.mocked(getLLMModel)
 const mockCosineSimilarity = vi.mocked(cosineSimilarity)
 
-function setupDefaultLLMMock(response = ' 7\nTech: 8\nExperience: 6') {
+function setupDefaultLLMMock(response = ' 7\nRequirements: 8\nExperience: 6') {
   mockIsModelAvailable.mockReturnValue(true)
   const mockSession = { prompt: vi.fn().mockResolvedValue(response) }
   const mockContext = {}
@@ -82,6 +82,9 @@ function createResume(overrides?: Partial<ParsedResume>): ParsedResume {
     ...overrides,
   }
 }
+
+// Pre-extracted requirements matching the default job description
+const DEFAULT_JOB_REQUIREMENTS = ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker']
 
 // ─── stripBoilerplate ────────────────────────────────────────────────────
 
@@ -160,53 +163,54 @@ describe('computeSkills', () => {
   })
 })
 
-// ─── computeTechStack ────────────────────────────────────────────────────
+// ─── computeRequirements ────────────────────────────────────────────────
 
-describe('computeTechStack', () => {
-  it('[P1] should find known tech terms in job text', () => {
-    const result = computeTechStack(
-      ['React', 'TypeScript', 'Docker'],
-      'We use React, TypeScript, Docker, and Kubernetes.',
-    )
-    expect(result.jobTerms).toContain('react')
-    expect(result.jobTerms).toContain('typescript')
-    expect(result.jobTerms).toContain('docker')
-    expect(result.jobTerms).toContain('kubernetes')
-  })
-
-  it('[P1] should compute coverage of job terms by resume skills', () => {
-    const result = computeTechStack(
+describe('computeRequirements', () => {
+  it('[P1] should compute coverage of LLM-extracted job terms by resume skills', () => {
+    const result = computeRequirements(
       ['React', 'TypeScript'],
-      'We use React, TypeScript, Docker, and Kubernetes.',
+      ['React', 'TypeScript', 'Docker', 'Kubernetes'],
     )
     // 2 covered out of 4 job terms = 50%
     expect(result.covered.length).toBe(2)
     expect(result.score).toBe(50)
   })
 
-  it('[P1] should return 0 when no tech terms found in job', () => {
-    const result = computeTechStack(['React'], 'Looking for a friendly person to join our team.')
+  it('[P1] should return 0 when no job terms provided', () => {
+    const result = computeRequirements(['React'], [])
     expect(result.score).toBe(0)
     expect(result.jobTerms).toEqual([])
   })
 
+  it('[P1] should return 0 when no resume skills provided', () => {
+    const result = computeRequirements([], ['React', 'TypeScript'])
+    expect(result.score).toBe(0)
+  })
+
   it('[P1] should apply minimum denominator to prevent small-denominator inflation', () => {
-    // Job with only 1 tech term and 1 match should NOT score 100%
-    const result = computeTechStack(
+    const result = computeRequirements(
       ['AWS'],
-      'Certification with AWS D17.1 and D1.2',
+      ['AWS'],
     )
-    expect(result.jobTerms).toContain('aws')
     expect(result.covered.length).toBe(1)
     // 1/max(1,4) = 25%, not 100%
     expect(result.score).toBe(25)
   })
 
-  it('[P2] should not match common English words as tech terms', () => {
-    const result = computeTechStack(['React'], 'You will rest and go with the team.')
-    // "rest" and "go" should NOT be in KNOWN_TECH
-    expect(result.jobTerms).not.toContain('rest')
-    expect(result.jobTerms).not.toContain('go')
+  it('[P1] should match case-insensitively', () => {
+    const result = computeRequirements(
+      ['react', 'TypeScript'],
+      ['React', 'TYPESCRIPT', 'Docker'],
+    )
+    expect(result.covered.length).toBe(2)
+  })
+
+  it('[P2] should match partial skill terms (substring matching)', () => {
+    const result = computeRequirements(
+      ['Node.js Development'],
+      ['Node.js', 'React'],
+    )
+    expect(result.covered).toContain('Node.js')
   })
 })
 
@@ -266,7 +270,7 @@ describe('computeSalary', () => {
 // ─── buildNudgePrompt ─────────────────────────────────────────────────────
 
 describe('buildNudgePrompt', () => {
-  const defaultAxes = { skills: 60, techStack: 50, experience: 40, salary: 50 }
+  const defaultAxes = { skills: 60, requirements: 50, experience: 40, salary: 50 }
 
   it('[P1] should include resume text, job details, and initial math scores', () => {
     const prompt = buildNudgePrompt('Skills: React, TypeScript', 'Software Engineer', 'Build web apps with React.', defaultAxes)
@@ -275,7 +279,7 @@ describe('buildNudgePrompt', () => {
     expect(prompt).toContain('Software Engineer')
     expect(prompt).toContain('Build web apps with React.')
     expect(prompt).toContain('Skills: 6/10')
-    expect(prompt).toContain('Tech: 5/10')
+    expect(prompt).toContain('Requirements: 5/10')
     expect(prompt).toContain('Experience: 4/10')
   })
 
@@ -283,7 +287,7 @@ describe('buildNudgePrompt', () => {
     const prompt = buildNudgePrompt('test', 'test', 'test', defaultAxes)
 
     expect(prompt).toContain('Skills:')
-    expect(prompt).toContain('Tech:')
+    expect(prompt).toContain('Requirements:')
     expect(prompt).toContain('Experience:')
     expect(prompt).not.toContain('Seniority:')
     expect(prompt).toContain('adjust by at most ±2')
@@ -317,7 +321,7 @@ describe('buildNudgePrompt', () => {
 // ─── parseNudgeResponse ──────────────────────────────────────────────────
 
 describe('parseNudgeResponse', () => {
-  const mathAxes = { skills: 60, techStack: 50, experience: 40, salary: 50 }
+  const mathAxes = { skills: 60, requirements: 50, experience: 40, salary: 50 }
 
   it('[P1] should parse valid 3-axis response and apply clampNudge', () => {
     const response = 'Skills: 7\nTech: 6\nExperience: 5'
@@ -327,7 +331,7 @@ describe('parseNudgeResponse', () => {
     // 7*10=70, math=60, delta=+10, clamped: 60+10=70
     expect(result!.skills).toBe(70)
     // 6*10=60, math=50, delta=+10, clamped: 50+10=60
-    expect(result!.techStack).toBe(60)
+    expect(result!.requirements).toBe(60)
     // 5*10=50, math=40, delta=+10, clamped: 40+10=50
     expect(result!.experience).toBe(50)
     // Salary untouched by LLM
@@ -351,12 +355,20 @@ describe('parseNudgeResponse', () => {
     expect(result!.skills).toBe(70)
   })
 
-  it('[P1] should handle "Tech Stack:" label with space', () => {
+  it('[P1] should handle "Tech Stack:" label (backward compat)', () => {
     const response = 'Skills: 7\nTech Stack: 6\nExperience: 5'
     const result = parseNudgeResponse(response, mathAxes)
 
     expect(result).not.toBeNull()
-    expect(result!.techStack).toBe(60)
+    expect(result!.requirements).toBe(60)
+  })
+
+  it('[P1] should handle "Requirements:" label', () => {
+    const response = 'Skills: 7\nRequirements: 6\nExperience: 5'
+    const result = parseNudgeResponse(response, mathAxes)
+
+    expect(result).not.toBeNull()
+    expect(result!.requirements).toBe(60)
   })
 
   it('[P1] should fallback to math scores for missing axes', () => {
@@ -365,7 +377,7 @@ describe('parseNudgeResponse', () => {
 
     expect(result).not.toBeNull()
     expect(result!.skills).toBe(70) // nudged
-    expect(result!.techStack).toBe(50) // fallback to math
+    expect(result!.requirements).toBe(50) // fallback to math
     expect(result!.experience).toBe(40) // fallback to math
   })
 
@@ -379,18 +391,18 @@ describe('parseNudgeResponse', () => {
   })
 
   it('[P1] should enforce zero-lock: math=0 means LLM can not override', () => {
-    const zeroMath = { skills: 0, techStack: 0, experience: 40, salary: 50 }
+    const zeroMath = { skills: 0, requirements: 0, experience: 40, salary: 50 }
     const response = 'Skills: 8\nTech: 7\nExperience: 5'
     const result = parseNudgeResponse(response, zeroMath)
 
     expect(result).not.toBeNull()
     expect(result!.skills).toBe(0) // zero-locked
-    expect(result!.techStack).toBe(0) // zero-locked
+    expect(result!.requirements).toBe(0) // zero-locked
     expect(result!.experience).toBe(50) // nudged from 40
   })
 
   it('[P1] should clamp nudge to ±10 points from math score', () => {
-    const highMath = { skills: 80, techStack: 70, experience: 60, salary: 50 }
+    const highMath = { skills: 80, requirements: 70, experience: 60, salary: 50 }
     // LLM says 2/10 (=20) for skills, math is 80. delta = 20-80 = -60, clamped to -10
     const response = 'Skills: 2\nTech: 7\nExperience: 6'
     const result = parseNudgeResponse(response, highMath)
@@ -418,8 +430,8 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    // Non-REJECT tier job should throw because LLM is required
-    await expect(scoreJob(job, resume)).rejects.toThrow('LLM model not found')
+    // Non-REJECT tier job should throw because LLM is required for nudge
+    await expect(scoreJob(job, resume, null, ['React', 'TypeScript', 'Node.js'])).rejects.toThrow('LLM model not found')
   })
 
   it('[P1] should return hybrid score with math + LLM nudge', async () => {
@@ -429,7 +441,7 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    const { matchScore, matchBreakdown } = await scoreJob(job, resume)
+    const { matchScore, matchBreakdown } = await scoreJob(job, resume, null, DEFAULT_JOB_REQUIREMENTS)
 
     expect(matchScore).toBeGreaterThanOrEqual(0)
     expect(matchScore).toBeLessThanOrEqual(100)
@@ -444,7 +456,7 @@ describe('scoreJob', () => {
     const job = createNormalizedJob({ salaryMin: 120000, salaryMax: 180000 })
     const resume = createResume()
 
-    const { matchBreakdown } = await scoreJob(job, resume, 150000)
+    const { matchBreakdown } = await scoreJob(job, resume, 150000, DEFAULT_JOB_REQUIREMENTS)
 
     expect(matchBreakdown.salary.score).toBe(100) // target in range
     expect(matchBreakdown.salary.weight).toBe(0.20)
@@ -458,8 +470,8 @@ describe('scoreJob', () => {
     const jobWithoutSalary = createNormalizedJob()
     const resume = createResume()
 
-    const withSalary = await scoreJob(jobWithSalary, resume, 150000)
-    const withoutSalary = await scoreJob(jobWithoutSalary, resume, 150000)
+    const withSalary = await scoreJob(jobWithSalary, resume, 150000, DEFAULT_JOB_REQUIREMENTS)
+    const withoutSalary = await scoreJob(jobWithoutSalary, resume, 150000, DEFAULT_JOB_REQUIREMENTS)
 
     expect(withSalary.matchScore).toBeGreaterThan(withoutSalary.matchScore)
   })
@@ -471,7 +483,7 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    const { matchScore } = await scoreJob(job, resume)
+    const { matchScore } = await scoreJob(job, resume, null, DEFAULT_JOB_REQUIREMENTS)
 
     expect(Number.isInteger(matchScore)).toBe(true)
     expect(matchScore).toBeGreaterThanOrEqual(0)
@@ -485,9 +497,9 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    const { matchBreakdown } = await scoreJob(job, resume)
+    const { matchBreakdown } = await scoreJob(job, resume, null, DEFAULT_JOB_REQUIREMENTS)
 
-    for (const axis of ['skills', 'techStack', 'experience', 'salary'] as const) {
+    for (const axis of ['skills', 'requirements', 'experience', 'salary'] as const) {
       expect(matchBreakdown[axis].score).toBeGreaterThanOrEqual(0)
       expect(matchBreakdown[axis].score).toBeLessThanOrEqual(100)
     }
@@ -500,16 +512,16 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    const { matchBreakdown } = await scoreJob(job, resume)
+    const { matchBreakdown } = await scoreJob(job, resume, null, DEFAULT_JOB_REQUIREMENTS)
 
     expect(matchBreakdown.skills.weight).toBe(0.35)
-    expect(matchBreakdown.techStack.weight).toBe(0.25)
+    expect(matchBreakdown.requirements.weight).toBe(0.25)
     expect(matchBreakdown.experience.weight).toBe(0.20)
     expect(matchBreakdown.salary.weight).toBe(0.20)
 
     const totalWeight =
       matchBreakdown.skills.weight +
-      matchBreakdown.techStack.weight +
+      matchBreakdown.requirements.weight +
       matchBreakdown.experience.weight +
       matchBreakdown.salary.weight
     expect(totalWeight).toBeCloseTo(1.0)
@@ -525,10 +537,10 @@ describe('scoreJob', () => {
     })
     const resume = createResume()
 
-    const { matchScore } = await scoreJob(job, resume)
+    const { matchScore } = await scoreJob(job, resume, null, ['patient care', 'nursing', 'hospice'])
 
     expect(matchScore).toBeLessThan(15)
-    // REJECT tier: LLM should NOT be called
+    // REJECT tier: LLM should NOT be called (for nudge — extractJobRequirements was bypassed via cached terms)
     expect(mockLLM.createContext).not.toHaveBeenCalled()
   })
 
@@ -539,7 +551,7 @@ describe('scoreJob', () => {
     const job = createNormalizedJob()
     const resume = createResume()
 
-    const { matchScore } = await scoreJob(job, resume)
+    const { matchScore } = await scoreJob(job, resume, null, DEFAULT_JOB_REQUIREMENTS)
 
     expect(matchScore).toBeGreaterThan(0)
     expect(mockLLM.createContext).toHaveBeenCalled()
@@ -548,7 +560,7 @@ describe('scoreJob', () => {
 
   it('[P2] should cap UNLIKELY tier at 50', async () => {
     // LLM returns high scores, but math is in UNLIKELY tier (15-45)
-    setupDefaultLLMMock(' 10\nTech: 10\nExperience: 10')
+    setupDefaultLLMMock(' 10\nRequirements: 10\nExperience: 10')
     // Cosine sim 0.35 → experience ~37 after scaling (0.35-0.2)/0.4*100
     mockCosineSimilarity.mockReturnValue(0.35)
 
@@ -561,7 +573,7 @@ describe('scoreJob', () => {
     })
     const resume = createResume({ skills: ['Leadership'] }) // no tech overlap
 
-    const { matchScore } = await scoreJob(job, resume)
+    const { matchScore } = await scoreJob(job, resume, null, ['project management', 'stakeholder communication'])
 
     // UNLIKELY tier caps at 50 even if LLM nudge tries to push higher
     expect(matchScore).toBeLessThanOrEqual(50)

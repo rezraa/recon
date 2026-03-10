@@ -459,6 +459,77 @@ Built recommendation models.
     })
   })
 
+  describe('cross-domain title extraction (domain-agnostic)', () => {
+    it('[P0] should extract nursing title from company-header format', async () => {
+      mockPdfText(`
+EXPERIENCE
+
+KAISER PERMANENTE.  •  Oakland, CA\tMarch 2019 – Present
+
+ICU Registered Nurse
+
+Administered IV therapy and monitored ventilator patients.
+Coordinated with respiratory therapy teams.
+`)
+      const result = await parseResume(Buffer.from('fake'))
+      expect(result.experience).toHaveLength(1)
+      expect(result.experience[0].title).toBe('ICU Registered Nurse')
+      expect(result.experience[0].company).toBe('KAISER PERMANENTE')
+    })
+
+    it('[P0] should extract trades title from company-header format', async () => {
+      mockPdfText(`
+WORK EXPERIENCE
+
+MILLER ELECTRIC.  •  Jacksonville, FL\tJune 2017 – Present
+
+Journeyman Electrician
+
+Installed and maintained industrial motor controls.
+Performed PLC programming for automated systems.
+`)
+      const result = await parseResume(Buffer.from('fake'))
+      expect(result.experience).toHaveLength(1)
+      expect(result.experience[0].title).toBe('Journeyman Electrician')
+      expect(result.experience[0].company).toBe('MILLER ELECTRIC')
+    })
+
+    it('[P0] should extract marketing title from company-header format', async () => {
+      mockPdfText(`
+PROFESSIONAL EXPERIENCE
+
+HUBSPOT.  •  Cambridge, MA\tJanuary 2020 – Present
+
+Senior Marketing Manager
+
+Managed SEO strategy and Google Analytics reporting.
+Led campaign management across multiple channels.
+`)
+      const result = await parseResume(Buffer.from('fake'))
+      expect(result.experience).toHaveLength(1)
+      expect(result.experience[0].title).toBe('Senior Marketing Manager')
+      expect(result.experience[0].company).toBe('HUBSPOT')
+    })
+
+    it('[P0] should extract non-tech titles from "Title at Company" format', async () => {
+      mockPdfText(`
+EXPERIENCE
+
+ICU Registered Nurse at Kaiser Permanente
+2019 - Present
+Administered IV therapy.
+
+Journeyman Electrician at Miller Electric
+2017 - 2019
+Installed motor controls.
+`)
+      const result = await parseResume(Buffer.from('fake'))
+      expect(result.experience).toHaveLength(2)
+      expect(result.experience[0].title).toBe('ICU Registered Nurse')
+      expect(result.experience[1].title).toBe('Journeyman Electrician')
+    })
+  })
+
   describe('edge cases', () => {
     it('[P0] should return empty result for empty PDF', async () => {
       mockPdfText('')

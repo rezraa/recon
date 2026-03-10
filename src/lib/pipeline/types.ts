@@ -77,7 +77,7 @@ export interface ScoringAxisResult {
 
 export interface MatchBreakdown {
   skills: ScoringAxisResult
-  techStack: ScoringAxisResult
+  requirements: ScoringAxisResult
   experience: ScoringAxisResult
   salary: ScoringAxisResult
 }
