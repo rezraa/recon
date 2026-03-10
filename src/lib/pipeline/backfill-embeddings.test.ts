@@ -21,10 +21,7 @@ vi.mock('@/lib/db/schema', () => ({
 
 import { computeEmbedding } from '@/lib/ai/embeddings'
 import { getDb } from '@/lib/db/client'
-
-// Import the function under test — adjust path since test is now under src/
-// We'll import dynamically to handle the script path
-const { backfillEmbeddings } = await import('../../../scripts/backfill-embeddings')
+import { backfillEmbeddings } from '@/lib/pipeline/backfill-embeddings'
 
 const mockComputeEmbedding = vi.mocked(computeEmbedding)
 const mockGetDb = vi.mocked(getDb)
