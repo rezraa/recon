@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { RawJobListing } from '@/lib/adapters/types'
 
 // No ML model mocks needed — benefits extraction is now section-based
-
 import { normalize } from './normalizer'
 
 function createRawListing(overrides?: Partial<RawJobListing>): RawJobListing {

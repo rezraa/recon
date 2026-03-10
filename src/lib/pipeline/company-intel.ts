@@ -4,11 +4,8 @@
  * Extracts company information (Glassdoor rating, size, funding, industry,
  * growth, recent news) via SearXNG queries and regex parsing.
  *
- * Fallback chain: Redis cache → seed file → SearXNG → "Unknown"
+ * Fallback chain: Redis cache → SearXNG → "Unknown"
  */
-
-import fs from 'node:fs'
-import path from 'node:path'
 
 import { Redis } from 'ioredis'
 
@@ -230,56 +227,6 @@ function toTitleCase(s: string): string {
     .replace(/(?:^|[\s/])\S/g, (c) => c.toUpperCase())
 }
 
-// ─── Seed File Loader ─────────────────────────────────────────────────────
-
-let _seedData: Map<string, CompanyIntel> | null = null
-
-function getSeedFilePath(): string {
-  return path.resolve(process.cwd(), 'data', 'company-intel-seed.json')
-}
-
-function loadSeedData(): Map<string, CompanyIntel> {
-  if (_seedData) return _seedData
-
-  try {
-    const seedPath = getSeedFilePath()
-    if (!fs.existsSync(seedPath)) {
-      _seedData = new Map()
-      return _seedData
-    }
-    const raw = fs.readFileSync(seedPath, 'utf-8')
-    const data = JSON.parse(raw) as Record<
-      string,
-      Omit<CompanyIntel, 'fetchedAt'> & { seeded_at: string }
-    >
-    _seedData = new Map()
-    for (const [name, entry] of Object.entries(data)) {
-      const seededAt = new Date(entry.seeded_at)
-      const ageInDays = (Date.now() - seededAt.getTime()) / (1000 * 60 * 60 * 24)
-      // Invalidate seeds older than 90 days
-      if (ageInDays <= 90) {
-        _seedData.set(normalizeCompanyName(name), {
-          glassdoorRating: entry.glassdoorRating,
-          companySize: entry.companySize,
-          funding: entry.funding,
-          industry: entry.industry,
-          growth: entry.growth,
-          recentNews: entry.recentNews,
-          fetchedAt: seededAt,
-        })
-      }
-    }
-    return _seedData
-  } catch {
-    _seedData = new Map()
-    return _seedData
-  }
-}
-
-export function _resetSeedCache(): void {
-  _seedData = null
-}
-
 // ─── Cache Layer ──────────────────────────────────────────────────────────
 
 async function getFromCache(companyName: string): Promise<CompanyIntel | null> {
@@ -354,26 +301,12 @@ function logFieldHitRates(company: string, intel: CompanyIntel, source: string):
 
 export async function getCompanyIntel(
   companyName: string,
-  options?: { skipSeed?: boolean },
 ): Promise<CompanyIntel> {
   // 1. Redis cache
   const cached = await getFromCache(companyName)
   if (cached) return cached
 
-  // 2. Seed file (skipped on force-refresh so SearXNG is always hit)
-  if (!options?.skipSeed) {
-    const seedData = loadSeedData()
-    const seeded = seedData.get(normalizeCompanyName(companyName))
-    if (seeded) {
-      const result = { ...seeded }
-      // Cache seed data in Redis for fast subsequent lookups
-      await setInCache(companyName, result)
-      logFieldHitRates(companyName, result, 'seed')
-      return result
-    }
-  }
-
-  // 3. SearXNG query
+  // 2. SearXNG query
   const searxResult = await fetchFromSearXNG(companyName)
   const now = new Date()
 

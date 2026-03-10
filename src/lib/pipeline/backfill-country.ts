@@ -21,7 +21,6 @@ export async function backfillCountry(): Promise<BackfillResult> {
   let totalUpdated = 0
 
   // Process in batches
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const batch = await db
       .select({

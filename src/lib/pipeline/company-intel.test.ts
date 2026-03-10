@@ -2,7 +2,6 @@ import { afterEach,beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   _resetCacheFor,
-  _resetSeedCache,
   _resetThrottle,
   _setRedis,
   type CompanyIntel,
@@ -250,7 +249,7 @@ describe('company-intel: cache layer', () => {
     vi.resetAllMocks()
     _setRedis(mockRedis as never)
     _resetThrottle(0)
-    _resetSeedCache()
+
   })
 
   afterEach(() => {
@@ -342,73 +341,6 @@ describe('company-intel: cache layer', () => {
   })
 })
 
-// ─── Seed File Tests ────────────────────────────────────────────────────────
-
-describe('company-intel: seed file fallback', () => {
-  const mockRedis = {
-    get: vi.fn(),
-    set: vi.fn(),
-  }
-  let fetchSpy: ReturnType<typeof vi.spyOn>
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-    _setRedis(mockRedis as never)
-    _resetThrottle(0)
-    _resetSeedCache()
-  })
-
-  afterEach(() => {
-    _setRedis(null)
-    fetchSpy?.mockRestore()
-  })
-
-  it('returns seed data for known companies when cache misses', async () => {
-    mockRedis.get.mockResolvedValue(null) // cache miss
-    fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('down'))
-
-    const result = await getCompanyIntel('Google')
-
-    // Google is in seed file
-    expect(result.glassdoorRating).not.toBe('Unknown')
-    expect(result.companySize).not.toBe('Unknown')
-    expect(result.funding).toBe('Public')
-
-    // Should cache the seed result in Redis
-    expect(mockRedis.set).toHaveBeenCalled()
-  })
-
-  it('returns Unknown for companies not in seed file when SearXNG is down', async () => {
-    mockRedis.get.mockResolvedValue(null)
-    fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('down'))
-
-    const result = await getCompanyIntel('TotallyUnknownStartupXYZ')
-
-    expect(result.glassdoorRating).toBe('Unknown')
-    expect(result.companySize).toBe('Unknown')
-  })
-
-  it('invalidates seed entries older than 90 days', async () => {
-    mockRedis.get.mockResolvedValue(null)
-    fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('down'))
-
-    // Mock Date.now to make seed data appear 91 days old
-    // Seed file uses seeded_at: "2026-03-01", so set "now" to 91 days later
-    const seedDate = new Date('2026-03-01')
-    const ninetyOneDaysLater = seedDate.getTime() + 91 * 24 * 60 * 60 * 1000
-    const originalDateNow = Date.now
-    Date.now = vi.fn().mockReturnValue(ninetyOneDaysLater)
-
-    _resetSeedCache() // force reload with mocked time
-    const result = await getCompanyIntel('Google') // Google is in seed
-
-    // Seed should be invalidated — falls through to SearXNG (mocked down) → Unknown
-    expect(result.glassdoorRating).toBe('Unknown')
-
-    Date.now = originalDateNow
-  })
-})
-
 // ─── Fallback Chain Tests ──────────────────────────────────────────────────
 
 describe('company-intel: fallback chain', () => {
@@ -422,7 +354,7 @@ describe('company-intel: fallback chain', () => {
     vi.resetAllMocks()
     _setRedis(mockRedis as never)
     _resetThrottle(0)
-    _resetSeedCache()
+
   })
 
   afterEach(() => {
@@ -430,7 +362,7 @@ describe('company-intel: fallback chain', () => {
     fetchSpy?.mockRestore()
   })
 
-  it('follows cache → seed → SearXNG → Unknown order', async () => {
+  it('follows cache → SearXNG → Unknown order', async () => {
     // Cache miss
     mockRedis.get.mockResolvedValue(null)
     // SearXNG down
@@ -440,7 +372,7 @@ describe('company-intel: fallback chain', () => {
 
     // Should have tried cache first
     expect(mockRedis.get).toHaveBeenCalledTimes(1)
-    // Should return Unknown (no seed, no SearXNG)
+    // Should return Unknown (no SearXNG)
     expect(result.glassdoorRating).toBe('Unknown')
   })
 
@@ -467,7 +399,7 @@ describe('company-intel: cache bust (_resetCacheFor)', () => {
     vi.resetAllMocks()
     _setRedis(mockRedis as never)
     _resetThrottle(0)
-    _resetSeedCache()
+
   })
 
   afterEach(() => {
@@ -511,7 +443,7 @@ describe('company-intel: Redis TTL behavior', () => {
     vi.resetAllMocks()
     _setRedis(mockRedis as never)
     _resetThrottle(0)
-    _resetSeedCache()
+
   })
 
   afterEach(() => {
@@ -546,17 +478,6 @@ describe('company-intel: Redis TTL behavior', () => {
     const setCall = mockRedis.set.mock.calls[0]
     expect(setCall[2]).toBe('EX')
     expect(setCall[3]).toBe(3600) // 1 hour
-  })
-
-  it('sets 7-day TTL for seed file results cached in Redis', async () => {
-    mockRedis.get.mockResolvedValue(null)
-    // Don't need fetch mock — seed file hit won't reach SearXNG
-
-    await getCompanyIntel('Google') // Google is in seed file
-
-    const setCall = mockRedis.set.mock.calls[0]
-    expect(setCall[2]).toBe('EX')
-    expect(setCall[3]).toBe(7 * 24 * 60 * 60)
   })
 
   it('re-fetches after cache bust (get returns null after del)', async () => {

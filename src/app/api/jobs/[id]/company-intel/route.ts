@@ -33,7 +33,7 @@ async function computeSkillOverlap(descriptionText: string | null): Promise<stri
   return extractSkillMatches(descriptionText, skills)
 }
 
-// ─── GET: on-demand fetch (DB cache → Redis → seed → SearXNG) ──────────────
+// ─── GET: on-demand fetch (DB cache → Redis → SearXNG) ──────────────────────
 
 export async function GET(
   _request: Request,
@@ -59,7 +59,7 @@ export async function GET(
       return NextResponse.json({ data: { ...existing, skillOverlap } })
     }
 
-    // On-demand fetch: Redis cache → seed → SearXNG → Unknown
+    // On-demand fetch: Redis cache → SearXNG → Unknown
     const intel = await getCompanyIntel(job.company)
 
     // Persist to DB for future API queries
@@ -98,8 +98,8 @@ export async function POST(
     // Bust Redis cache for this company
     await _resetCacheFor(job.company)
 
-    // Force fresh fetch (skips Redis cache since we just cleared it, skips seed)
-    const intel = await getCompanyIntel(job.company, { skipSeed: true })
+    // Force fresh fetch (skips Redis cache since we just cleared it)
+    const intel = await getCompanyIntel(job.company)
 
     // Persist fresh result to DB
     await upsertCompanyIntel(job.company, intel)
