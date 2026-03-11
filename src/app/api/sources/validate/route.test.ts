@@ -93,7 +93,7 @@ describe('POST /api/sources/validate', () => {
   })
 
   it('should return 400 for unsupported source', async () => {
-    const res = await POST(createRequest({ sourceName: 'remoteok', apiKey: 'key' }))
+    const res = await POST(createRequest({ sourceName: 'himalayas', apiKey: 'key' }))
     const json = await res.json()
 
     expect(res.status).toBe(400)

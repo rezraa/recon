@@ -1,7 +1,6 @@
 import { SOURCE_CONFIGS } from './constants'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
-import { remoteokAdapter } from './remoteok'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import type { SourceAdapter, SourceConfig } from './types'
@@ -66,7 +65,6 @@ export function clearAdapterRegistry(): void {
 
 // ─── Register All Source Adapters ───────────────────────────────────────────
 
-registerAdapter(remoteokAdapter)
 registerAdapter(himalayasAdapter)
 registerAdapter(themuseAdapter)
 registerAdapter(jobicyAdapter)

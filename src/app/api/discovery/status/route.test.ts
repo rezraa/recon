@@ -151,7 +151,7 @@ describe('GET /api/discovery/status', () => {
       listingsNew: 0,
       listingsDeduplicated: 0,
       errors: [
-        { source: 'remoteok', error: 'Timeout', timestamp: '2026-03-09T10:01:00Z' },
+        { source: 'himalayas', error: 'Timeout', timestamp: '2026-03-09T10:01:00Z' },
         { source: 'himalayas', error: 'API down', timestamp: '2026-03-09T10:02:00Z' },
         { source: 'serply', error: 'Invalid key', timestamp: '2026-03-09T10:03:00Z' },
       ],

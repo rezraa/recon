@@ -5,13 +5,11 @@ import { server } from '@/test-utils/msw/server'
 
 import himalayasFixture from './__fixtures__/himalayas-response.json'
 import jobicyFixture from './__fixtures__/jobicy-response.json'
-import remoteokFixture from './__fixtures__/remoteok-response.json'
 import serplyFixture from './__fixtures__/serply-response.json'
 import themuseFixture from './__fixtures__/themuse-response.json'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
 import { getAllAdapters } from './registry'
-import { remoteokAdapter } from './remoteok'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import type { RawJobListing } from './types'
@@ -21,9 +19,6 @@ import { rawJobListingSchema } from './types'
 
 function setupAllHandlers() {
   server.use(
-    http.get('https://remoteok.com/api', () => {
-      return HttpResponse.json([{ legal: 'metadata' }, ...remoteokFixture])
-    }),
     http.get('https://himalayas.app/jobs/api', () => {
       return HttpResponse.json(himalayasFixture)
     }),
@@ -58,25 +53,19 @@ const serplyConfig = {
 
 async function fetchAllAdapterResults(): Promise<Record<string, RawJobListing[]>> {
   setupAllHandlers()
-  const [remoteok, himalayas, themuse, jobicy, serply] = await Promise.all([
-    remoteokAdapter.fetchListings(defaultConfig),
+  const [himalayas, themuse, jobicy, serply] = await Promise.all([
     himalayasAdapter.fetchListings(defaultConfig),
     themuseAdapter.fetchListings(defaultConfig),
     jobicyAdapter.fetchListings(defaultConfig),
     serplyAdapter.fetchListings(serplyConfig),
   ])
-  return { remoteok, himalayas, themuse, jobicy, serply }
+  return { himalayas, themuse, jobicy, serply }
 }
 
 // ─── Legal Compliance ──────────────────────────────────────────────────────
 
 /** @priority-1 */
 describe('Legal Compliance: raw_data preservation', () => {
-  it('should preserve remoteok API response byte-for-byte in raw_data', async () => {
-    const results = await fetchAllAdapterResults()
-    expect(results.remoteok[0].raw_data).toEqual(remoteokFixture[0])
-  })
-
   it('should preserve himalayas API response byte-for-byte in raw_data', async () => {
     const results = await fetchAllAdapterResults()
     expect(results.himalayas[0].raw_data).toEqual(himalayasFixture.jobs[0])
@@ -114,12 +103,6 @@ describe('Legal Compliance: description_html preservation', () => {
     expect(listing.description_html).toBeTruthy()
   })
 
-  it('should preserve remoteok source HTML without modification', async () => {
-    const results = await fetchAllAdapterResults()
-    const listing = results.remoteok[0]
-    expect(listing.description_html).toBe(remoteokFixture[0].description)
-  })
-
   it('should preserve himalayas source HTML without modification', async () => {
     const results = await fetchAllAdapterResults()
     const listing = results.himalayas[0]
@@ -144,13 +127,6 @@ describe('Legal Compliance: description_text derivation', () => {
     expect(listing.description_text).toContain('Senior')
     expect(listing.description_text).toContain('React')
     expect(listing.description_text).toContain('Developer')
-  })
-
-  it('should populate description_text from remoteok HTML', async () => {
-    const results = await fetchAllAdapterResults()
-    const listing = results.remoteok[0]
-    expect(listing.description_text).toBeTruthy()
-    expect(listing.description_text.length).toBeGreaterThan(0)
   })
 
   it('should derive description_text from himalayas HTML', async () => {
@@ -178,18 +154,6 @@ describe('Legal Compliance: description_text derivation', () => {
 // ─── Data Quality ──────────────────────────────────────────────────────────
 
 describe('Data Quality: salary parsing', () => {
-  it('should parse numeric salary_min/salary_max correctly', async () => {
-    const results = await fetchAllAdapterResults()
-    expect(results.remoteok[0].salary_min).toBe(120000)
-    expect(results.remoteok[0].salary_max).toBe(160000)
-  })
-
-  it('should have undefined salary when source lacks salary data', async () => {
-    const results = await fetchAllAdapterResults()
-    expect(results.remoteok[1].salary_min).toBeUndefined()
-    expect(results.remoteok[1].salary_max).toBeUndefined()
-  })
-
   it('should parse serply detected_extensions salary correctly', async () => {
     const results = await fetchAllAdapterResults()
     expect(results.serply[0].salary_min).toBe(140000)
@@ -216,11 +180,6 @@ describe('Data Quality: salary parsing', () => {
 })
 
 describe('Data Quality: is_remote inference', () => {
-  it('should infer is_remote true when location is "Remote"', async () => {
-    const results = await fetchAllAdapterResults()
-    expect(results.remoteok[0].is_remote).toBe(true)
-  })
-
   it('should infer is_remote true when location contains "Remote"', async () => {
     const results = await fetchAllAdapterResults()
     expect(results.serply[0].is_remote).toBe(true) // "Remote - US"
@@ -236,8 +195,8 @@ describe('Data Quality: is_remote inference', () => {
 describe('Data Quality: is_remote three-state contract', () => {
   it('should return true for explicitly remote location', async () => {
     const results = await fetchAllAdapterResults()
-    expect(results.remoteok[0].is_remote).toBe(true)
-    expect(typeof results.remoteok[0].is_remote).toBe('boolean')
+    expect(results.himalayas[0].is_remote).toBe(true)
+    expect(typeof results.himalayas[0].is_remote).toBe('boolean')
   })
 
   it('should return false for known non-remote location', async () => {
@@ -275,7 +234,6 @@ describe('Data Quality: is_remote three-state contract', () => {
   it('should never produce is_remote as a string or number', async () => {
     const results = await fetchAllAdapterResults()
     const allListings = [
-      ...results.remoteok,
       ...results.himalayas,
       ...results.themuse,
       ...results.jobicy,
@@ -292,14 +250,14 @@ describe('Data Quality: is_remote three-state contract', () => {
     // Test with a listing that has no location — should produce undefined (third state)
     setupAllHandlers()
     server.use(
-      http.get('https://remoteok.com/api', () => {
-        return HttpResponse.json([
-          { legal: 'metadata' },
-          { ...remoteokFixture[0], location: undefined },
-        ])
+      http.get('https://himalayas.app/jobs/api', () => {
+        return HttpResponse.json({
+          ...himalayasFixture,
+          jobs: [{ ...himalayasFixture.jobs[0], locationRestrictions: [] }],
+        })
       }),
     )
-    const listings = await remoteokAdapter.fetchListings(defaultConfig)
+    const listings = await himalayasAdapter.fetchListings(defaultConfig)
     expect(listings[0].is_remote).toBeUndefined()
   })
 })
@@ -332,14 +290,6 @@ describe('Data Quality: location pass-through', () => {
 
 /** @priority-1 */
 describe('Zod schema validation: all adapters cross-validated', () => {
-  it('should validate all remoteok adapter output through RawJobListing schema', async () => {
-    const results = await fetchAllAdapterResults()
-    for (const listing of results.remoteok) {
-      const result = rawJobListingSchema.safeParse(listing)
-      expect(result.success, `Failed for remoteok: ${JSON.stringify(result)}`).toBe(true)
-    }
-  })
-
   it('should validate all himalayas adapter output through RawJobListing schema', async () => {
     const results = await fetchAllAdapterResults()
     for (const listing of results.himalayas) {
@@ -438,11 +388,11 @@ describe('Optional getRateLimitStatus', () => {
 // ─── Registry Validation ───────────────────────────────────────────────────
 
 describe('Registry: all adapters registered', () => {
-  it('should have all 5 adapters registered', () => {
+  it('should have all 4 adapters registered', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(5)
+    expect(adapters).toHaveLength(4)
     const names = adapters.map((a) => a.name).sort()
-    expect(names).toEqual(['himalayas', 'jobicy', 'remoteok', 'serply', 'themuse'])
+    expect(names).toEqual(['himalayas', 'jobicy', 'serply', 'themuse'])
   })
 
   it('should have real implementations (not stubs)', async () => {

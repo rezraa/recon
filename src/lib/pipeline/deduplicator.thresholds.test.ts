@@ -6,7 +6,7 @@ import type { NormalizedJob } from './types'
 function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob {
   return {
     externalId: `ext-${Math.random().toString(36).slice(2)}`,
-    sourceName: 'remoteok',
+    sourceName: 'himalayas',
     title: 'Software Engineer',
     company: 'Google',
     descriptionHtml: '<p>Build things.</p>',
@@ -22,7 +22,7 @@ function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob 
     country: 'US',
     fingerprint: `fp-${Math.random().toString(36).slice(2)}`,
     searchText: 'Software Engineer Google Build things.',
-    sources: [{ name: 'remoteok', external_id: 'ext-123', fetched_at: '2026-03-08T00:00:00Z' }],
+    sources: [{ name: 'himalayas', external_id: 'ext-123', fetched_at: '2026-03-08T00:00:00Z' }],
     discoveredAt: new Date(),
     pipelineStage: 'discovered',
     ...overrides,
@@ -124,8 +124,8 @@ describe('deduplicator cross-source thresholds', () => {
 
       const db = createCrossSourceDb(candidateRecord)
       const job = createNormalizedJob({
-        externalId: 'remoteok-123',
-        sourceName: 'remoteok',
+        externalId: 'himalayas-123',
+        sourceName: 'himalayas',
         fingerprint,
         salaryMin: 120000,
         salaryMax: 180000,
@@ -148,7 +148,7 @@ describe('deduplicator cross-source thresholds', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build.</p>',
@@ -196,7 +196,7 @@ describe('deduplicator cross-source thresholds', () => {
 
       const job = createNormalizedJob({
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         salaryMin: 120000,
         salaryMax: 180000,
         applyUrl: 'https://example.com/apply',
@@ -280,7 +280,7 @@ describe('deduplicator cross-source thresholds', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-789',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Engineer',
         company: 'Apple',
         descriptionHtml: '<p>Original</p>',
@@ -328,7 +328,7 @@ describe('deduplicator cross-source thresholds', () => {
 
       const job = createNormalizedJob({
         externalId: 'ext-789',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         salaryMin: 200000,
         salaryMax: 300000,
         descriptionHtml: '<p>Updated</p>',
@@ -363,7 +363,7 @@ describe('deduplicator cross-source thresholds', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'dup-ext',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Engineer',
         company: 'Google',
         descriptionHtml: null,
@@ -413,7 +413,7 @@ describe('deduplicator cross-source thresholds', () => {
       } as unknown as Parameters<typeof deduplicate>[1]
 
       const jobs = [
-        createNormalizedJob({ externalId: 'dup-ext', sourceName: 'remoteok', title: 'Engineer', company: 'Google' }),
+        createNormalizedJob({ externalId: 'dup-ext', sourceName: 'himalayas', title: 'Engineer', company: 'Google' }),
         createNormalizedJob({ externalId: 'new-ext', sourceName: 'himalayas', title: 'Designer', company: 'Meta', fingerprint: 'unique-fp' }),
       ]
 

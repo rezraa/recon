@@ -5,9 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { SourcesStep } from './SourcesStep'
 
 describe('SourcesStep', () => {
-  it('[P1] should render all 5 sources from registry', () => {
+  it('[P1] should render all 4 sources from registry', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
-    expect(screen.getByText('Remote OK')).toBeInTheDocument()
     expect(screen.getByText('Himalayas')).toBeInTheDocument()
     expect(screen.getByText('The Muse')).toBeInTheDocument()
     expect(screen.getByText('Jobicy')).toBeInTheDocument()
@@ -28,7 +27,6 @@ describe('SourcesStep', () => {
 
   it('[P1] should render source descriptions from registry', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
-    expect(screen.getByText('Remote tech jobs')).toBeInTheDocument()
     expect(screen.getByText('Remote jobs across industries')).toBeInTheDocument()
     expect(screen.getByText('Curated US job listings')).toBeInTheDocument()
     expect(screen.getByText('Remote jobs worldwide')).toBeInTheDocument()
@@ -38,7 +36,7 @@ describe('SourcesStep', () => {
   it('[P1] should render Enabled indicator for open sources', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
     const enabledIndicators = screen.getAllByText('Enabled')
-    expect(enabledIndicators).toHaveLength(4)
+    expect(enabledIndicators).toHaveLength(3)
   })
 
   it('[P1] should render letter avatars (not images)', () => {
@@ -47,7 +45,6 @@ describe('SourcesStep', () => {
     const images = container.querySelectorAll('img')
     expect(images).toHaveLength(0)
     // Letter avatars should be present (first letter in circle)
-    expect(screen.getByText('R')).toBeInTheDocument() // Remote OK
     expect(screen.getByText('H')).toBeInTheDocument() // Himalayas
     expect(screen.getByText('T')).toBeInTheDocument() // The Muse
     expect(screen.getByText('J')).toBeInTheDocument() // Jobicy

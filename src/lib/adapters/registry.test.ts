@@ -18,13 +18,11 @@ import {
   getSourcesByRegion,
   registerAdapter,
 } from './registry'
-import { remoteokAdapter } from './remoteok'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import { rawJobListingSchema } from './types'
 
 function reRegisterDefaults() {
-  registerAdapter(remoteokAdapter)
   registerAdapter(himalayasAdapter)
   registerAdapter(themuseAdapter)
   registerAdapter(jobicyAdapter)
@@ -53,13 +51,13 @@ const sourceConfigSchema = z.object({
 })
 
 describe('SOURCE_CONFIGS validation', () => {
-  it('should have exactly 5 sources', () => {
-    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(5)
+  it('should have exactly 4 sources', () => {
+    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(4)
   })
 
   it('should contain all expected sources', () => {
     expect(Object.keys(SOURCE_CONFIGS)).toEqual(
-      expect.arrayContaining(['remoteok', 'himalayas', 'themuse', 'jobicy', 'serply']),
+      expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'serply']),
     )
   })
 
@@ -94,9 +92,9 @@ describe('SOURCE_CONFIGS validation', () => {
 })
 
 describe('getAllSources', () => {
-  it('should return all 5 sources', () => {
+  it('should return all 4 sources', () => {
     const sources = getAllSources()
-    expect(sources).toHaveLength(5)
+    expect(sources).toHaveLength(4)
   })
 
   it('should return SourceConfig objects', () => {
@@ -112,9 +110,9 @@ describe('getAllSources', () => {
 
 describe('getSourceByName', () => {
   it('should return source by name', () => {
-    const source = getSourceByName('remoteok')
+    const source = getSourceByName('himalayas')
     expect(source).toBeDefined()
-    expect(source!.displayName).toBe('Remote OK')
+    expect(source!.displayName).toBe('Himalayas')
   })
 
   it('should return undefined for unknown source', () => {
@@ -133,15 +131,15 @@ describe('getSourceByName', () => {
 describe('getOpenSources', () => {
   it('should return only open sources', () => {
     const sources = getOpenSources()
-    expect(sources).toHaveLength(4)
+    expect(sources).toHaveLength(3)
     for (const source of sources) {
       expect(source.type).toBe('open')
     }
   })
 
-  it('should include RemoteOK, Himalayas, The Muse, and Jobicy', () => {
+  it('should include Himalayas, The Muse, and Jobicy', () => {
     const names = getOpenSources().map((s) => s.name)
-    expect(names).toEqual(expect.arrayContaining(['remoteok', 'himalayas', 'themuse', 'jobicy']))
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy']))
   })
 })
 
@@ -160,22 +158,22 @@ describe('getSourcesByRegion', () => {
     const names = sources.map((s) => s.name)
     // themuse has ['US'], others have ['*']
     expect(names).toContain('themuse')
-    expect(names).toContain('remoteok')
+    expect(names).toContain('himalayas')
     expect(names).toContain('serply')
-    expect(sources.length).toBe(5) // all sources match US (4 global + 1 US-specific)
+    expect(sources.length).toBe(4) // all sources match US (3 global + 1 US-specific)
   })
 
   it('should return only global sources for non-US region', () => {
     const sources = getSourcesByRegion('GB')
     const names = sources.map((s) => s.name)
     expect(names).not.toContain('themuse') // themuse is US-only
-    expect(names).toContain('remoteok')
-    expect(sources.length).toBe(4) // 4 global sources
+    expect(names).toContain('himalayas')
+    expect(sources.length).toBe(3) // 3 global sources
   })
 
   it('should return global sources for unknown region', () => {
     const sources = getSourcesByRegion('ZZ')
-    expect(sources.length).toBe(4)
+    expect(sources.length).toBe(3)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }
@@ -185,9 +183,9 @@ describe('getSourcesByRegion', () => {
 // ─── Adapter-Level Registry Tests ─────────────────────────────────────────
 
 describe('adapter registry (pre-registered)', () => {
-  it('should have all 5 adapters registered by default', () => {
+  it('should have all 4 adapters registered by default', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(5)
+    expect(adapters).toHaveLength(4)
   })
 
   it('should have adapter names matching source config names', () => {
@@ -196,7 +194,7 @@ describe('adapter registry (pre-registered)', () => {
     expect(adapterNames).toEqual(configNames)
   })
 
-  it.each(['remoteok', 'himalayas', 'themuse', 'jobicy', 'serply'])(
+  it.each(['himalayas', 'themuse', 'jobicy', 'serply'])(
     'should retrieve %s adapter by name',
     (name) => {
       const adapter = getAdapter(name)
@@ -210,7 +208,6 @@ describe('adapter registry (pre-registered)', () => {
   })
 
   it('should have correct displayName for each adapter', () => {
-    expect(getAdapter('remoteok')!.displayName).toBe('Remote OK')
     expect(getAdapter('himalayas')!.displayName).toBe('Himalayas')
     expect(getAdapter('themuse')!.displayName).toBe('The Muse')
     expect(getAdapter('jobicy')!.displayName).toBe('Jobicy')
@@ -218,7 +215,6 @@ describe('adapter registry (pre-registered)', () => {
   })
 
   it('should have correct type for each adapter', () => {
-    expect(getAdapter('remoteok')!.type).toBe('open')
     expect(getAdapter('himalayas')!.type).toBe('open')
     expect(getAdapter('themuse')!.type).toBe('open')
     expect(getAdapter('jobicy')!.type).toBe('open')
@@ -275,20 +271,20 @@ describe('adapter registry (dynamic registration)', () => {
 describe('getEnabledAdapters', () => {
   it('should return only adapters whose source is enabled', () => {
     const sources = [
-      { name: 'remoteok', isEnabled: true },
-      { name: 'himalayas', isEnabled: false },
+      { name: 'himalayas', isEnabled: true },
+      { name: 'themuse', isEnabled: false },
       { name: 'serply', isEnabled: true },
     ]
     const enabled = getEnabledAdapters(sources)
     const names = enabled.map((a) => a.name)
-    expect(names).toContain('remoteok')
+    expect(names).toContain('himalayas')
     expect(names).toContain('serply')
-    expect(names).not.toContain('himalayas')
+    expect(names).not.toContain('themuse')
   })
 
   it('should return empty array when no sources are enabled', () => {
     const sources = [
-      { name: 'remoteok', isEnabled: false },
+      { name: 'himalayas', isEnabled: false },
       { name: 'serply', isEnabled: false },
     ]
     expect(getEnabledAdapters(sources)).toHaveLength(0)
@@ -301,22 +297,21 @@ describe('getEnabledAdapters', () => {
   it('should ignore sources without matching adapters', () => {
     const sources = [
       { name: 'nonexistent', isEnabled: true },
-      { name: 'remoteok', isEnabled: true },
+      { name: 'himalayas', isEnabled: true },
     ]
     const enabled = getEnabledAdapters(sources)
     expect(enabled).toHaveLength(1)
-    expect(enabled[0].name).toBe('remoteok')
+    expect(enabled[0].name).toBe('himalayas')
   })
 
   it('should return all adapters when all sources are enabled', () => {
     const sources = [
-      { name: 'remoteok', isEnabled: true },
       { name: 'himalayas', isEnabled: true },
       { name: 'themuse', isEnabled: true },
       { name: 'jobicy', isEnabled: true },
       { name: 'serply', isEnabled: true },
     ]
-    expect(getEnabledAdapters(sources)).toHaveLength(5)
+    expect(getEnabledAdapters(sources)).toHaveLength(4)
   })
 })
 
@@ -331,13 +326,13 @@ describe('SOURCE_CONFIGS immutability', () => {
 
   it('should throw when modifying nested attribution', () => {
     expect(() => {
-      (SOURCE_CONFIGS.remoteok.attribution as { requiresFollowLink: boolean }).requiresFollowLink = false
+      (SOURCE_CONFIGS.himalayas.attribution as { requiresFollowLink: boolean }).requiresFollowLink = false
     }).toThrow()
   })
 
   it('should throw when modifying nested rateLimits', () => {
     expect(() => {
-      (SOURCE_CONFIGS.remoteok.rateLimits as { cooldownMs: number }).cooldownMs = 0
+      (SOURCE_CONFIGS.himalayas.rateLimits as { cooldownMs: number }).cooldownMs = 0
     }).toThrow()
   })
 })
@@ -350,12 +345,12 @@ describe('getSourcesByRegion edge cases', () => {
     const sources = getSourcesByRegion('us')
     // Only global (*) sources match — 'US' !== 'us'
     expect(sources.every((s) => s.regions.includes('*'))).toBe(true)
-    expect(sources.length).toBe(4) // 4 global sources, themuse excluded
+    expect(sources.length).toBe(3) // 3 global sources, themuse excluded
   })
 
   it('should return only global sources for empty string region', () => {
     const sources = getSourcesByRegion('')
-    expect(sources.length).toBe(4)
+    expect(sources.length).toBe(3)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }
@@ -395,26 +390,26 @@ describe('adapter-config consistency', () => {
 describe('getEnabledAdapters edge cases', () => {
   it('should handle duplicate source names in input', () => {
     const sources = [
-      { name: 'remoteok', isEnabled: true },
-      { name: 'remoteok', isEnabled: true },
+      { name: 'himalayas', isEnabled: true },
+      { name: 'himalayas', isEnabled: true },
     ]
     const enabled = getEnabledAdapters(sources)
     // Deduplication via Set means only 1 adapter returned
     expect(enabled).toHaveLength(1)
-    expect(enabled[0].name).toBe('remoteok')
+    expect(enabled[0].name).toBe('himalayas')
   })
 
   it('should use last isEnabled value when source name is duplicated', () => {
-    // Set filters sources first, so both remoteok entries pass (both enabled)
+    // Set filters sources first, so both himalayas entries pass (both enabled)
     // But if first is true and second is false, only false passes filter
     const sources = [
-      { name: 'remoteok', isEnabled: true },
-      { name: 'remoteok', isEnabled: false },
+      { name: 'himalayas', isEnabled: true },
+      { name: 'himalayas', isEnabled: false },
     ]
     const enabled = getEnabledAdapters(sources)
     // The Set is built from filtered sources — only the first (enabled=true) passes
     // Actually both go through filter: first passes, second doesn't
-    // Set ends up with just 'remoteok' from the first entry
+    // Set ends up with just 'himalayas' from the first entry
     expect(enabled).toHaveLength(1)
   })
 })
@@ -422,11 +417,11 @@ describe('getEnabledAdapters edge cases', () => {
 describe('rawJobListingSchema', () => {
   it('should validate a complete job listing', () => {
     const listing = {
-      source_name: 'remoteok',
+      source_name: 'himalayas',
       external_id: '12345',
       title: 'Senior Developer',
       company: 'Acme Corp',
-      source_url: 'https://remoteok.com/remote-jobs/12345',
+      source_url: 'https://himalayas.app/jobs/12345',
       description_text: 'Great job opportunity',
       raw_data: { original: 'data' },
     }
@@ -461,7 +456,7 @@ describe('rawJobListingSchema', () => {
 
   it('should reject listing with invalid source_url', () => {
     const listing = {
-      source_name: 'remoteok',
+      source_name: 'himalayas',
       external_id: '12345',
       title: 'Dev',
       company: 'Co',

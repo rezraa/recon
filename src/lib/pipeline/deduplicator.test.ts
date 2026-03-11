@@ -17,7 +17,7 @@ import type { NormalizedJob, SourceAttribution } from './types'
 function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob {
   return {
     externalId: 'ext-123',
-    sourceName: 'remoteok',
+    sourceName: 'himalayas',
     title: 'Software Engineer',
     company: 'Google',
     descriptionHtml: '<p>Build things.</p>',
@@ -33,7 +33,7 @@ function createNormalizedJob(overrides?: Partial<NormalizedJob>): NormalizedJob 
     country: 'US',
     fingerprint: 'abc123',
     searchText: 'Software Engineer Google Build things.',
-    sources: [{ name: 'remoteok', external_id: 'ext-123', fetched_at: '2026-03-08T00:00:00Z' }],
+    sources: [{ name: 'himalayas', external_id: 'ext-123', fetched_at: '2026-03-08T00:00:00Z' }],
     discoveredAt: new Date(),
     pipelineStage: 'discovered',
     ...overrides,
@@ -85,7 +85,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build things.</p>',
@@ -128,7 +128,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build things.</p>',
@@ -188,7 +188,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build things.</p>',
@@ -250,7 +250,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: null,
@@ -338,7 +338,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build things.</p>',
@@ -393,14 +393,14 @@ describe('deduplicate', () => {
       const sources = updatedRecords[0].sources as SourceAttribution[]
       expect(sources).toHaveLength(2)
       expect(sources[0].name).toBe('jobicy')
-      expect(sources[1].name).toBe('remoteok')
+      expect(sources[1].name).toBe('himalayas')
     })
 
     it('[P1] should NOT add duplicate source entry', async () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: '<p>Build things.</p>',
@@ -414,7 +414,7 @@ describe('deduplicate', () => {
         benefits: null,
         rawData: {},
         embedding: null,
-        sources: [{ name: 'remoteok', external_id: 'ext-123', fetched_at: '2026-03-07T00:00:00Z' }],
+        sources: [{ name: 'himalayas', external_id: 'ext-123', fetched_at: '2026-03-07T00:00:00Z' }],
         dedupConfidence: null,
         matchScore: null,
         matchBreakdown: null,
@@ -552,7 +552,7 @@ describe('deduplicate', () => {
       } as unknown as Parameters<typeof deduplicate>[1]
 
       const job = createNormalizedJob({
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         externalId: 'ext-new',
         embedding,
       })
@@ -595,7 +595,7 @@ describe('deduplicate', () => {
       const existingRecord = {
         id: 'existing-uuid',
         externalId: 'ext-123',
-        sourceName: 'remoteok',
+        sourceName: 'himalayas',
         title: 'Software Engineer',
         company: 'Google',
         descriptionHtml: null,

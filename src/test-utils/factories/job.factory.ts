@@ -9,7 +9,7 @@ export function createJob(overrides?: Partial<JobRecord>): JobRecord {
   return {
     id: crypto.randomUUID(),
     externalId: faker.string.nanoid(),
-    sourceName: faker.helpers.arrayElement(['linkedin', 'indeed', 'remoteok', 'jobicy']),
+    sourceName: faker.helpers.arrayElement(['linkedin', 'indeed', 'himalayas', 'jobicy']),
     title: faker.person.jobTitle(),
     company: faker.company.name(),
     descriptionHtml: `<p>${faker.lorem.paragraph()}</p>`,

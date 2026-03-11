@@ -36,6 +36,66 @@ function sanitizeText(text: string): string {
     .trim()
 }
 
+// ─── Sanitize (preserve newlines for section parsing) ───────────────────────
+
+/** Sanitize but preserve newlines (for section-based parsing like benefits) */
+function sanitizeTextPreserveNewlines(text: string): string {
+  return sanitizeHtml(text)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')  // preserve bullet structure from list items
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[^\S\n]+/g, ' ')   // collapse horizontal whitespace but keep \n
+    .replace(/\n\s*\n/g, '\n')   // collapse multiple blank lines
+    .trim()
+}
+
+// ─── Benefits Extraction (Section-Based) ────────────────────────────────────
+
+/** Section headers that indicate a benefits/perks section */
+const BENEFITS_SECTION_PATTERN =
+  /\b(?:benefits|what we offer|perks|compensation\s*(?:&|and)\s*benefits|our benefits|employee benefits|why join us|why work here)\b/i
+
+/** Extract benefits by finding a benefits section and pulling bullet points verbatim */
+function extractBenefits(descriptionHtml: string | undefined, descriptionText: string): string[] | undefined {
+  // Prefer HTML source (has structural tags) over plain text
+  const text = descriptionHtml
+    ? sanitizeTextPreserveNewlines(descriptionHtml)
+    : descriptionText
+
+  if (!text || text.length < 10) return undefined
+
+  const lines = text.split(/\n/)
+  let sectionStart = -1
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.length > 0 && line.length < 60 && BENEFITS_SECTION_PATTERN.test(line)) {
+      sectionStart = i + 1
+      break
+    }
+  }
+
+  if (sectionStart === -1) return undefined
+
+  const items: string[] = []
+  for (let i = sectionStart; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    // Stop at what looks like a new section header
+    if (line.length < 60 && /^[A-Z][A-Z\s]{3,}$/.test(line)) break
+    if (line.length < 60 && !line.startsWith('-') && !line.startsWith('•') && !line.startsWith('*') && /^[A-Z][a-z]/.test(line) && !line.includes(':') && items.length > 0 && line.split(/\s+/).length <= 5) break
+
+    const cleaned = line.replace(/^[\s\-–—*•●◦▪·]+/, '').trim()
+    if (cleaned.length >= 5 && cleaned.length < 200) {
+      items.push(cleaned)
+    }
+  }
+
+  return items.length > 0 ? items : undefined
+}
+
 // ─── Normalizer ─────────────────────────────────────────────────────────────
 
 export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult> {
@@ -100,7 +160,7 @@ export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult>
         country,
         sourceUrl: listing.source_url,
         applyUrl: listing.apply_url,
-        benefits: undefined,
+        benefits: extractBenefits(listing.description_html, descriptionText),
         rawData: listing.raw_data,
         fingerprint,
         searchText,

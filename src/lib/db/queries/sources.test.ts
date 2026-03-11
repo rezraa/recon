@@ -27,7 +27,7 @@ const { findAllSources, getSourceApiKey, upsertSourceConfig } = await import('./
 describe('findAllSources', () => {
   it('should call select().from() on the database', async () => {
     const mockSources = [
-      { id: '1', name: 'remoteok', config: null },
+      { id: '1', name: 'himalayas', config: null },
       { id: '2', name: 'serply', config: { apiKey: 'encrypted' } },
     ]
     const mockFrom = vi.fn().mockResolvedValue(mockSources)

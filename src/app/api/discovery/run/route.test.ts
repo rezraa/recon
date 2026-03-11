@@ -40,7 +40,7 @@ describe('POST /api/discovery/run', () => {
 
   it('[P1] should create pipeline_run and enqueue job', async () => {
     mockSelectResult.push(
-      { id: 'src-1', name: 'remoteok', isEnabled: true },
+      { id: 'src-1', name: 'himalayas', isEnabled: true },
       { id: 'src-2', name: 'himalayas', isEnabled: true },
     )
 
@@ -53,13 +53,13 @@ describe('POST /api/discovery/run', () => {
 
     expect(mockQueueAdd).toHaveBeenCalledWith(
       'pipeline.run',
-      { runId: 'run-uuid-123', sourceNames: ['remoteok', 'himalayas'] },
+      { runId: 'run-uuid-123', sourceNames: ['himalayas', 'himalayas'] },
       { removeOnComplete: true, removeOnFail: false },
     )
   })
 
   it('[P1] should return 202 with runId', async () => {
-    mockSelectResult.push({ id: 'src-1', name: 'remoteok', isEnabled: true })
+    mockSelectResult.push({ id: 'src-1', name: 'himalayas', isEnabled: true })
 
     const response = await POST()
     const body = await response.json()
@@ -71,7 +71,7 @@ describe('POST /api/discovery/run', () => {
 
   it('[P1] should return 400 when no sources are enabled', async () => {
     // No enabled sources
-    mockSelectResult.push({ id: 'src-1', name: 'remoteok', isEnabled: false })
+    mockSelectResult.push({ id: 'src-1', name: 'himalayas', isEnabled: false })
 
     const response = await POST()
     const body = await response.json()

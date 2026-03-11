@@ -17,7 +17,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('useSources', () => {
   it('should fetch sources data', async () => {
     const mockData = [
-      { name: 'remoteok', displayName: 'Remote OK', type: 'open', isConfigured: true },
+      { name: 'himalayas', displayName: 'Himalayas', type: 'open', isConfigured: true },
     ]
 
     vi.stubGlobal(

@@ -8,25 +8,6 @@ function deepFreeze<T extends object>(obj: T): Readonly<T> {
 }
 
 export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze({
-  remoteok: {
-    name: 'remoteok',
-    displayName: 'Remote OK',
-    type: 'open',
-    description: 'Remote tech jobs',
-    regions: ['*'],
-    attribution: {
-      requiresFollowLink: true,
-      attributionUrl: 'https://remoteok.com',
-      descriptionPolicy: 'no_modify',
-    },
-    rateLimits: {
-      requestsPerHour: null,
-      requestsPerDay: 48,
-      requestsPerMonth: null,
-      cooldownMs: 60_000,
-    },
-  },
-
   himalayas: {
     name: 'himalayas',
     displayName: 'Himalayas',

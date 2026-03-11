@@ -35,12 +35,12 @@ describe('GET /api/sources', () => {
     const json = await res.json()
 
     expect(res.status).toBe(200)
-    expect(json.data).toHaveLength(5)
+    expect(json.data).toHaveLength(4)
 
     // Open sources should be configured and active
-    const remoteok = json.data.find((s: { name: string }) => s.name === 'remoteok')
-    expect(remoteok.isConfigured).toBe(true)
-    expect(remoteok.isActive).toBe(true)
+    const himalayas = json.data.find((s: { name: string }) => s.name === 'himalayas')
+    expect(himalayas.isConfigured).toBe(true)
+    expect(himalayas.isActive).toBe(true)
 
     // Serply with config should be configured
     const serply = json.data.find((s: { name: string }) => s.name === 'serply')

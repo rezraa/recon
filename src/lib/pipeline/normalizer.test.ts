@@ -7,7 +7,7 @@ import { normalize } from './normalizer'
 
 function createRawListing(overrides?: Partial<RawJobListing>): RawJobListing {
   return {
-    source_name: 'remoteok',
+    source_name: 'himalayas',
     external_id: 'test-123',
     title: 'Software Engineer',
     company: 'Google',
@@ -197,18 +197,72 @@ describe('normalize', () => {
     it('[P1] should populate sources array with single source', async () => {
       const { normalized } = await normalize([createRawListing()])
       expect(normalized[0].sources).toHaveLength(1)
-      expect(normalized[0].sources[0].name).toBe('remoteok')
+      expect(normalized[0].sources[0].name).toBe('himalayas')
       expect(normalized[0].sources[0].external_id).toBe('test-123')
       expect(normalized[0].sources[0].fetched_at).toBeTruthy()
     })
   })
 
-  describe('benefits field', () => {
-    it('[P1] should set benefits to undefined (LLM extracts during scoring)', async () => {
+  describe('benefits extraction (section-based)', () => {
+    it('[P1] should extract benefits from a Benefits section in HTML', async () => {
       const { normalized } = await normalize([
         createRawListing({
-          description_text: 'Build amazing software. Benefits - Health insurance - 401k',
-          description_html: '<p>Build amazing software.</p><h3>Benefits</h3><ul><li>Health insurance</li><li>401k</li></ul>',
+          description_html: '<p>Build amazing software.</p><h3>Benefits</h3><ul><li>Comprehensive health insurance</li><li>401k retirement matching</li><li>Unlimited vacation days</li></ul>',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(3)
+      expect(normalized[0].benefits).toContain('Comprehensive health insurance')
+      expect(normalized[0].benefits).toContain('401k retirement matching')
+    })
+
+    it('[P1] should return undefined when no benefits section found', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_text: 'Build amazing software products.',
+          description_html: '<p>Build amazing software products.</p>',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeUndefined()
+    })
+
+    it('[P1] should extract from "What We Offer" section', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_html: '<p>Join our team.</p><h3>What We Offer</h3><ul><li>Four weeks paid vacation</li><li>Comprehensive medical coverage</li><li>Equity compensation</li></ul>',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(3)
+    })
+
+    it('[P1] should extract non-tech benefits (trades, healthcare)', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_html: '<p>Requirements: Valid license.</p><h3>Benefits</h3><ul><li>Free PPE and tools provided</li><li>Shift differentials for night shifts</li><li>Union benefits package</li><li>Company vehicle for job sites</li></ul>',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(4)
+      expect(normalized[0].benefits).toContain('Free PPE and tools provided')
+      expect(normalized[0].benefits).toContain('Shift differentials for night shifts')
+    })
+
+    it('[P1] should extract from "Compensation & Benefits" section', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_html: '<p>About the role.</p><h3>Compensation & Benefits</h3><ul><li>Competitive salary</li><li>Stock options</li><li>Remote work flexibility</li></ul>',
+        }),
+      ])
+      expect(normalized[0].benefits).toBeDefined()
+      expect(normalized[0].benefits!.length).toBe(3)
+    })
+
+    it('[P1] should NOT hallucinate benefits when none are listed', async () => {
+      const { normalized } = await normalize([
+        createRawListing({
+          description_text: 'Senior Engineer needed. Requirements: Go, Kubernetes, PostgreSQL. 5+ years experience. Competitive salary offered.',
+          description_html: '<p>Senior Engineer needed.</p><p>Requirements: Go, Kubernetes, PostgreSQL. 5+ years experience. Competitive salary offered.</p>',
         }),
       ])
       expect(normalized[0].benefits).toBeUndefined()
@@ -319,7 +373,7 @@ describe('normalize', () => {
 
     it('[P1] should handle multiple valid listings from different sources', async () => {
       const { normalized } = await normalize([
-        createRawListing({ source_name: 'remoteok', external_id: 'r1', title: 'Engineer' }),
+        createRawListing({ source_name: 'himalayas', external_id: 'r1', title: 'Engineer' }),
         createRawListing({ source_name: 'jobicy', external_id: 'j1', title: 'Designer' }),
         createRawListing({ source_name: 'himalayas', external_id: 'h1', title: 'Manager' }),
       ])

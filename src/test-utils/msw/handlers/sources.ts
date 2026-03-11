@@ -2,17 +2,12 @@ import { delay,http, HttpResponse } from 'msw'
 
 import himalayasResponse from '@/lib/adapters/__fixtures__/himalayas-response.json'
 import jobicyResponse from '@/lib/adapters/__fixtures__/jobicy-response.json'
-import remoteokResponse from '@/lib/adapters/__fixtures__/remoteok-response.json'
 import serplyResponse from '@/lib/adapters/__fixtures__/serply-response.json'
 import themuseResponse from '@/lib/adapters/__fixtures__/themuse-response.json'
 
 // ─── Default Success Handlers ──────────────────────────────────────────────
 
 export const sourceHandlers = [
-  http.get('https://remoteok.com/api', () => {
-    return HttpResponse.json([{ legal: 'RemoteOK API metadata' }, ...remoteokResponse])
-  }),
-
   http.get('https://himalayas.app/jobs/api', () => {
     return HttpResponse.json(himalayasResponse)
   }),
@@ -39,22 +34,6 @@ export const sourceHandlers = [
 // ─── Error Response Handlers (for use with server.use() in tests) ──────────
 
 export const sourceErrorHandlers = {
-  remoteok: {
-    http401: http.get('https://remoteok.com/api', () => {
-      return new HttpResponse(null, { status: 401, statusText: 'Unauthorized' })
-    }),
-    http429: http.get('https://remoteok.com/api', () => {
-      return new HttpResponse(null, { status: 429, statusText: 'Too Many Requests' })
-    }),
-    http500: http.get('https://remoteok.com/api', () => {
-      return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' })
-    }),
-    timeout: http.get('https://remoteok.com/api', async () => {
-      await delay('infinite')
-      return HttpResponse.json([])
-    }),
-  },
-
   himalayas: {
     http401: http.get('https://himalayas.app/jobs/api', () => {
       return new HttpResponse(null, { status: 401, statusText: 'Unauthorized' })

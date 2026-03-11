@@ -10,25 +10,21 @@ import { findAllSources } from '@/lib/db/queries/sources'
 const mockFindAllSources = vi.mocked(findAllSources)
 
 describe('GET /api/sources — edge cases', () => {
-  it('[P2] should return all 5 sources when DB has no source records at all', async () => {
+  it('[P2] should return all 4 sources when DB has no source records at all', async () => {
     // Given: DB is completely empty
     mockFindAllSources.mockResolvedValue([])
 
     const res = await GET()
     const json = await res.json()
 
-    // Then: all 5 sources still returned from registry
-    expect(json.data).toHaveLength(5)
+    // Then: all 4 sources still returned from registry
+    expect(json.data).toHaveLength(4)
 
     // Open sources should still be configured and active
-    const remoteok = json.data.find((s: { name: string }) => s.name === 'remoteok')
-    expect(remoteok.isConfigured).toBe(true)
-    expect(remoteok.isActive).toBe(true)
-    expect(remoteok.type).toBe('open')
-
     const himalayas = json.data.find((s: { name: string }) => s.name === 'himalayas')
     expect(himalayas.isConfigured).toBe(true)
     expect(himalayas.isActive).toBe(true)
+    expect(himalayas.type).toBe('open')
   })
 
   it('[P2] should include signupUrl for key_required sources and not for open sources', async () => {
@@ -55,7 +51,6 @@ describe('GET /api/sources — edge cases', () => {
     const json = await res.json()
 
     const descriptions: Record<string, string> = {
-      remoteok: 'Remote tech jobs',
       himalayas: 'Remote jobs across industries',
       themuse: 'Curated US job listings',
       jobicy: 'Remote jobs worldwide',

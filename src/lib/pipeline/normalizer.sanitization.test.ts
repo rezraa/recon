@@ -19,7 +19,7 @@ import { normalize } from './normalizer'
 
 function createRawListing(overrides?: Partial<RawJobListing>): RawJobListing {
   return {
-    source_name: 'remoteok',
+    source_name: 'himalayas',
     external_id: `test-${Math.random().toString(36).slice(2)}`,
     title: 'Software Engineer',
     company: 'Acme Corp',

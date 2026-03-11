@@ -98,10 +98,7 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           .set({
             matchScore,
             matchBreakdown,
-            ...(extractedProfile ? {
-              extractedProfile,
-              ...(extractedProfile.benefits?.length ? { benefits: extractedProfile.benefits } : {}),
-            } : {}),
+            ...(extractedProfile ? { extractedProfile } : {}),
           })
           .where(
             and(

@@ -82,7 +82,7 @@ function createResumeProfile(overrides?: Partial<ProfileExtraction>): ProfileExt
     hardSkills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'CI/CD', 'Selenium', 'Playwright'],
     softSkills: ['leadership', 'mentoring'],
     certifications: [],
-    benefits: [],
+
     ...overrides,
   }
 }
@@ -102,7 +102,6 @@ const DEFAULT_JOB_PROFILE: ProfileExtraction = {
   hardSkills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker'],
   softSkills: ['communication'],
   certifications: [],
-  benefits: [],
 }
 
 // ─── stripBoilerplate ────────────────────────────────────────────────────
@@ -419,7 +418,7 @@ describe('scoreJob', () => {
       hardSkills: ['Workday', 'Payroll', 'HRIS', 'ADP'],
       softSkills: ['communication'],
       certifications: ['SHRM-CP'],
-      benefits: [],
+  
     }
 
     const { matchScore, matchBreakdown } = await scoreJob(
@@ -445,7 +444,7 @@ describe('scoreJob', () => {
       hardSkills: [],
       softSkills: [],
       certifications: [],
-      benefits: [],
+  
     }
 
     const { matchScore } = await scoreJob(

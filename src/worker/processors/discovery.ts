@@ -166,11 +166,7 @@ async function scoreAndUpdateJobs(
           .set({
             matchScore,
             matchBreakdown,
-            ...(extractedProfile ? {
-              extractedProfile,
-              // LLM-extracted benefits replace normalizer's regex-based extraction
-              ...(extractedProfile.benefits?.length ? { benefits: extractedProfile.benefits } : {}),
-            } : {}),
+            ...(extractedProfile ? { extractedProfile } : {}),
           })
           .where(
             and(

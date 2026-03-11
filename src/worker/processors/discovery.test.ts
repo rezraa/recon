@@ -80,7 +80,7 @@ vi.mock('@/lib/db/queries/sources', () => ({
 
 const mockFetchListings = vi.fn().mockResolvedValue([
   {
-    source_name: 'remoteok',
+    source_name: 'himalayas',
     external_id: 'ext-1',
     title: 'Software Engineer',
     company: 'TestCo',
@@ -93,8 +93,8 @@ const mockFetchListings = vi.fn().mockResolvedValue([
 vi.mock('@/lib/adapters/registry', () => ({
   getEnabledAdapters: vi.fn(() => [
     {
-      name: 'remoteok',
-      displayName: 'RemoteOK',
+      name: 'himalayas',
+      displayName: 'Himalayas',
       type: 'open',
       fetchListings: mockFetchListings,
     },
@@ -111,7 +111,7 @@ vi.mock('@/lib/pipeline/normalizer', () => ({
       normalized: [
         {
           externalId: 'ext-1',
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           title: 'Software Engineer',
           company: 'TestCo',
           descriptionHtml: undefined,
@@ -127,7 +127,7 @@ vi.mock('@/lib/pipeline/normalizer', () => ({
           country: 'US',
           fingerprint: 'abc123',
           searchText: 'Software Engineer TestCo Build amazing things with React and Node.',
-          sources: [{ name: 'remoteok', external_id: 'ext-1', fetched_at: '2026-03-09T00:00:00Z' }],
+          sources: [{ name: 'himalayas', external_id: 'ext-1', fetched_at: '2026-03-09T00:00:00Z' }],
           discoveredAt: new Date(),
           pipelineStage: 'discovered',
         } satisfies NormalizedJob,
@@ -145,12 +145,12 @@ vi.mock('@/lib/pipeline/deduplicator', () => ({
       new: [
         {
           externalId: 'ext-1',
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           title: 'Software Engineer',
           company: 'TestCo',
           descriptionText: 'Build amazing things with React and Node.',
           searchText: 'Software Engineer TestCo Build amazing things with React and Node.',
-          sources: [{ name: 'remoteok', external_id: 'ext-1', fetched_at: '2026-03-09T00:00:00Z' }],
+          sources: [{ name: 'himalayas', external_id: 'ext-1', fetched_at: '2026-03-09T00:00:00Z' }],
           discoveredAt: new Date(),
           pipelineStage: 'discovered',
         },
@@ -209,7 +209,7 @@ describe('discoveryProcessor', () => {
     mockSelectResult.length = 0
     // Default: return enabled sources
     mockSelectResult.push(
-      { id: 'src-1', name: 'remoteok', isEnabled: true, config: null },
+      { id: 'src-1', name: 'himalayas', isEnabled: true, config: null },
     )
   })
 
@@ -219,7 +219,7 @@ describe('discoveryProcessor', () => {
     const { deduplicate } = await import('@/lib/pipeline/deduplicator')
     const { scoreJob } = await import('@/lib/pipeline/scoring')
 
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     expect(mockFetchListings).toHaveBeenCalledOnce()
     expect(normalize).toHaveBeenCalledOnce()
@@ -230,7 +230,7 @@ describe('discoveryProcessor', () => {
   })
 
   it('[P1] should execute dedup BEFORE insert and score (correct pipeline ordering)', async () => {
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     const normalizeIdx = callOrder.indexOf('normalize')
     const dedupIdx = callOrder.indexOf('deduplicate')
@@ -243,14 +243,14 @@ describe('discoveryProcessor', () => {
   it('[P1] should not block other sources if one adapter fails (parallel fetch)', async () => {
     mockSelectResult.length = 0
     mockSelectResult.push(
-      { id: 'src-1', name: 'remoteok', isEnabled: true, config: null },
+      { id: 'src-1', name: 'himalayas', isEnabled: true, config: null },
       { id: 'src-2', name: 'himalayas', isEnabled: true, config: null },
     )
 
     const { getEnabledAdapters } = await import('@/lib/adapters/registry')
     const failingAdapter = {
-      name: 'remoteok',
-      displayName: 'RemoteOK',
+      name: 'himalayas',
+      displayName: 'Himalayas',
       type: 'open' as const,
       fetchListings: vi.fn().mockRejectedValue(new Error('Network error')),
     }
@@ -264,7 +264,7 @@ describe('discoveryProcessor', () => {
 
     await discoveryProcessor(createMockJob({
       runId: 'run-123',
-      sourceNames: ['remoteok', 'himalayas'],
+      sourceNames: ['himalayas', 'jobicy'],
     }))
 
     // Both fetches fire (parallel), failing one doesn't block working one
@@ -277,29 +277,29 @@ describe('discoveryProcessor', () => {
   it('[P1] should fetch all sources in parallel', async () => {
     mockSelectResult.length = 0
     mockSelectResult.push(
-      { id: 'src-1', name: 'remoteok', isEnabled: true, config: null },
-      { id: 'src-2', name: 'himalayas', isEnabled: true, config: null },
+      { id: 'src-1', name: 'himalayas', isEnabled: true, config: null },
+      { id: 'src-2', name: 'jobicy', isEnabled: true, config: null },
     )
 
     const fetchTimestamps: number[] = []
     const slowFetch = vi.fn().mockImplementation(async () => {
       fetchTimestamps.push(Date.now())
-      return [{ source_name: 'himalayas', external_id: 'ext-2', title: 'Dev', company: 'Co', source_url: 'https://example.com/2', description_text: 'Test', raw_data: {} }]
+      return [{ source_name: 'jobicy', external_id: 'ext-2', title: 'Dev', company: 'Co', source_url: 'https://example.com/2', description_text: 'Test', raw_data: {} }]
     })
     const fastFetch = vi.fn().mockImplementation(async () => {
       fetchTimestamps.push(Date.now())
-      return [{ source_name: 'remoteok', external_id: 'ext-1', title: 'Dev', company: 'Co', source_url: 'https://example.com/1', description_text: 'Test', raw_data: {} }]
+      return [{ source_name: 'himalayas', external_id: 'ext-1', title: 'Dev', company: 'Co', source_url: 'https://example.com/1', description_text: 'Test', raw_data: {} }]
     })
 
     const { getEnabledAdapters } = await import('@/lib/adapters/registry')
     vi.mocked(getEnabledAdapters).mockReturnValue([
-      { name: 'remoteok', displayName: 'RemoteOK', type: 'open', fetchListings: fastFetch },
-      { name: 'himalayas', displayName: 'Himalayas', type: 'open', fetchListings: slowFetch },
+      { name: 'himalayas', displayName: 'Himalayas', type: 'open', fetchListings: fastFetch },
+      { name: 'jobicy', displayName: 'Jobicy', type: 'open', fetchListings: slowFetch },
     ])
 
     await discoveryProcessor(createMockJob({
       runId: 'run-123',
-      sourceNames: ['remoteok', 'himalayas'],
+      sourceNames: ['himalayas', 'jobicy'],
     }))
 
     // Both fetches were called
@@ -310,7 +310,7 @@ describe('discoveryProcessor', () => {
   })
 
   it('[P1] should update pipeline run record', async () => {
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     expect(mockUpdateWhere).toHaveBeenCalled()
     const callCount = mockUpdateWhere.mock.calls.length
@@ -319,7 +319,7 @@ describe('discoveryProcessor', () => {
   })
 
   it('[P1] should set completedAt on pipeline completion', async () => {
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     expect(mockUpdateWhere).toHaveBeenCalled()
   })
@@ -327,7 +327,7 @@ describe('discoveryProcessor', () => {
   it('[P1] should compute embedding for each job before dedup', async () => {
     const { computeEmbedding } = await import('@/lib/ai/embeddings')
 
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     const embeddingCalls = vi.mocked(computeEmbedding).mock.calls
     expect(embeddingCalls.length).toBeGreaterThanOrEqual(1)
@@ -343,7 +343,7 @@ describe('discoveryProcessor', () => {
       new: [
         {
           externalId: 'ext-new',
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           title: 'New Job',
           company: 'NewCo',
           descriptionText: 'New role',
@@ -356,7 +356,7 @@ describe('discoveryProcessor', () => {
       updated: [
         {
           externalId: 'ext-existing',
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           title: 'Existing Job',
           company: 'OldCo',
           descriptionText: 'Old role',
@@ -370,7 +370,7 @@ describe('discoveryProcessor', () => {
       duplicateCount: 1,
     })
 
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     // onConflictDoNothing called once for the 1 new job (not 2 for all)
     expect(mockInsertOnConflict).toHaveBeenCalledTimes(1)
@@ -379,7 +379,7 @@ describe('discoveryProcessor', () => {
   it('[P2] should handle empty adapter result gracefully', async () => {
     mockFetchListings.mockResolvedValueOnce([])
 
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     // Should complete without errors
     expect(mockUpdateWhere).toHaveBeenCalled()
@@ -391,7 +391,7 @@ describe('discoveryProcessor', () => {
 
     const { scoreJob } = await import('@/lib/pipeline/scoring')
 
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
+    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] }))
 
     // scoreJob should NOT be called when no resume
     expect(scoreJob).not.toHaveBeenCalled()
@@ -400,7 +400,7 @@ describe('discoveryProcessor', () => {
   it('[P2] should handle missing preferences gracefully', async () => {
     // Should complete without throwing even if preferences are empty/missing
     await expect(
-      discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] })),
+      discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] })),
     ).resolves.not.toThrow()
   })
 })

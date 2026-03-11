@@ -5,11 +5,11 @@ import { SourceError, wrapAdapterError } from './errors'
 describe('wrapAdapterError', () => {
   it('should return existing SourceError unchanged', () => {
     const original = new SourceError({
-      sourceName: 'remoteok',
+      sourceName: 'himalayas',
       errorType: 'rate_limit',
       message: 'Too many requests',
     })
-    const result = wrapAdapterError('remoteok', original)
+    const result = wrapAdapterError('himalayas', original)
     expect(result).toBe(original)
   })
 
@@ -37,7 +37,7 @@ describe('wrapAdapterError', () => {
   it('should classify AbortError as timeout', () => {
     const error = new Error('The operation was aborted')
     error.name = 'AbortError'
-    const result = wrapAdapterError('remoteok', error)
+    const result = wrapAdapterError('himalayas', error)
     expect(result.errorType).toBe('timeout')
   })
 
@@ -62,7 +62,7 @@ describe('wrapAdapterError', () => {
 
   it('should classify SyntaxError as parse_error', () => {
     const error = new SyntaxError('Unexpected token < in JSON at position 0')
-    const result = wrapAdapterError('remoteok', error)
+    const result = wrapAdapterError('himalayas', error)
     expect(result.errorType).toBe('parse_error')
   })
 
@@ -100,8 +100,8 @@ describe('wrapAdapterError', () => {
 
   it('should include source name in error message', () => {
     const error = new Error('Network failure')
-    const result = wrapAdapterError('remoteok', error)
-    expect(result.message).toContain('[remoteok]')
+    const result = wrapAdapterError('himalayas', error)
+    expect(result.message).toContain('[himalayas]')
   })
 
   it('should set retryAt for rate_limit errors', () => {
@@ -113,7 +113,7 @@ describe('wrapAdapterError', () => {
 
   it('should not set retryAt for non-rate-limit errors', () => {
     const error = new Error('Connection refused')
-    const result = wrapAdapterError('remoteok', error)
+    const result = wrapAdapterError('himalayas', error)
     expect(result.retryAt).toBeUndefined()
   })
 
@@ -138,7 +138,7 @@ describe('wrapAdapterError', () => {
   it('should classify as parse_error when SyntaxError also has "timeout" in message', () => {
     // SyntaxError wins over timeout message heuristic — parse_error is highest priority
     const error = new SyntaxError('timeout parsing JSON response')
-    const result = wrapAdapterError('remoteok', error)
+    const result = wrapAdapterError('himalayas', error)
     expect(result.errorType).toBe('parse_error')
   })
 
@@ -150,20 +150,20 @@ describe('wrapAdapterError', () => {
   })
 
   it('should handle plain string errors', () => {
-    const result = wrapAdapterError('remoteok', 'something broke')
+    const result = wrapAdapterError('himalayas', 'something broke')
     expect(result).toBeInstanceOf(SourceError)
     expect(result.errorType).toBe('unknown')
-    expect(result.message).toContain('[remoteok]')
+    expect(result.message).toContain('[himalayas]')
   })
 
   it('should handle null error', () => {
-    const result = wrapAdapterError('remoteok', null)
+    const result = wrapAdapterError('himalayas', null)
     expect(result).toBeInstanceOf(SourceError)
     expect(result.errorType).toBe('unknown')
   })
 
   it('should handle undefined error', () => {
-    const result = wrapAdapterError('remoteok', undefined)
+    const result = wrapAdapterError('himalayas', undefined)
     expect(result).toBeInstanceOf(SourceError)
     expect(result.errorType).toBe('unknown')
   })

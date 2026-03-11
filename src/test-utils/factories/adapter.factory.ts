@@ -46,7 +46,7 @@ export function createMockAdapter(options: MockAdapterOptions = {}): SourceAdapt
 
 export function createRawJobListing(overrides?: Partial<RawJobListing>): RawJobListing {
   return {
-    source_name: faker.helpers.arrayElement(['remoteok', 'himalayas', 'themuse', 'jobicy', 'serply']),
+    source_name: faker.helpers.arrayElement(['himalayas', 'themuse', 'jobicy', 'serply']),
     external_id: faker.string.nanoid(),
     title: faker.person.jobTitle(),
     company: faker.company.name(),

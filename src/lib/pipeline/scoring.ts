@@ -26,7 +26,6 @@ export interface ProfileExtraction {
   hardSkills: string[]
   softSkills: string[]
   certifications: string[]
-  benefits: string[]
 }
 
 export interface EmbeddedProfile {
@@ -94,7 +93,6 @@ export function parseExtraction(raw: string): ProfileExtraction | null {
       hardSkills: Array.isArray(p.hardSkills) ? p.hardSkills.map(String).filter((s: string) => s.length > 0) : [],
       softSkills: Array.isArray(p.softSkills) ? p.softSkills.map(String).filter((s: string) => s.length > 0) : [],
       certifications: Array.isArray(p.certifications) ? p.certifications.map(String).filter((s: string) => s.length > 0) : [],
-      benefits: Array.isArray(p.benefits) ? p.benefits.map(String).filter((s: string) => s.length > 0) : [],
     }
   } catch {
     return null
@@ -133,7 +131,7 @@ Skills: ${skills.join(', ')}
 Experience: ${expText}
 Total years: ${totalYears}
 
-{"title":"<most representative job title>","domain":"<primary professional field>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":${totalYears},"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<any certs mentioned>" or empty],"benefits":[]}`
+{"title":"<most representative job title>","domain":"<primary professional field>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":${totalYears},"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<any certs mentioned>" or empty]}`
 
   const context = await llm.createContext()
   try {
@@ -169,15 +167,14 @@ export async function extractJobProfile(jobTitle: string, jobDesc: string): Prom
     throw new Error('Failed to load LLM model.')
   }
 
-  // Use full description (not stripped) so LLM can see benefits sections
-  const cleaned = jobDesc.slice(0, 1200)
+  const cleaned = stripBoilerplate(jobDesc).slice(0, 1200)
 
   const prompt = `Extract structured data from this job posting. Respond with ONLY a JSON object.
 
 Title: ${jobTitle}
 Description: ${cleaned}
 
-{"title":"<exact job title>","domain":"<primary professional field this role belongs to>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":<years required or 0 if not stated>,"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<required certs>" or empty],"benefits":["<health insurance, 401k, PTO, remote work, equity, etc>" or empty]}`
+{"title":"<exact job title>","domain":"<primary professional field this role belongs to>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":<years required or 0 if not stated>,"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<required certs>" or empty]}`
 
   const context = await llm.createContext()
   try {

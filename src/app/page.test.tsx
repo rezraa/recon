@@ -90,8 +90,8 @@ describe('Root Page - Feed', () => {
           salaryMin: 100000,
           salaryMax: 150000,
           matchScore: 85,
-          sourceName: 'remoteok',
-          sources: [{ name: 'remoteok', external_id: 'ext-1', fetched_at: '2026-03-09' }],
+          sourceName: 'himalayas',
+          sources: [{ name: 'himalayas', external_id: 'ext-1', fetched_at: '2026-03-09' }],
           discoveredAt: '2026-03-09T00:00:00Z',
           sourceUrl: 'https://example.com/1',
         },
@@ -117,9 +117,9 @@ describe('Root Page - Feed', () => {
           salaryMin: null,
           salaryMax: null,
           matchScore: 70,
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           sources: [
-            { name: 'remoteok', external_id: 'ext-1', fetched_at: '2026-03-09' },
+            { name: 'himalayas', external_id: 'ext-1', fetched_at: '2026-03-09' },
             { name: 'himalayas', external_id: 'ext-2', fetched_at: '2026-03-09' },
           ],
           discoveredAt: '2026-03-09T00:00:00Z',
@@ -156,7 +156,7 @@ describe('Root Page - Feed', () => {
           salaryMin: 120000,
           salaryMax: 180000,
           matchScore: 90,
-          sourceName: 'remoteok',
+          sourceName: 'himalayas',
           sources: [],
           discoveredAt: null,
           sourceUrl: null,
@@ -173,7 +173,7 @@ describe('Root Page - Feed', () => {
   it('[P1] should start discovery via Run Discovery button', async () => {
     // Need jobs so AutoDiscovery doesn't fire and the Run Discovery button appears
     mockUseJobs.mockReturnValue({
-      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'remoteok', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'himalayas', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
       total: 1,
       isLoading: false,
       mutate: vi.fn(),
@@ -195,7 +195,7 @@ describe('Root Page - Feed', () => {
 
   it('[P1] should show error when discovery fails', async () => {
     mockUseJobs.mockReturnValue({
-      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'remoteok', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'himalayas', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
       total: 1,
       isLoading: false,
       mutate: vi.fn(),
