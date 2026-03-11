@@ -8,7 +8,8 @@ import { DiscoveryBanner } from './DiscoveryBanner'
 vi.mock('@/hooks/useDiscoveryStatus', () => ({
   useDiscoveryStatus: vi.fn((runId: string | null) => {
     if (!runId) return { status: null, sourcesCompleted: 0, sourcesTotal: 0, listingsNew: 0, isComplete: false }
-    if (runId === 'run-running') return { status: 'running', sourcesCompleted: 2, sourcesTotal: 5, listingsNew: 0, isComplete: false }
+    if (runId === 'run-fetching') return { status: 'fetching', sourcesCompleted: 2, sourcesTotal: 5, listingsNew: 0, isComplete: false }
+    if (runId === 'run-scoring') return { status: 'scoring', sourcesCompleted: 5, sourcesTotal: 5, listingsNew: 0, isComplete: false }
     if (runId === 'run-done') return { status: 'completed', sourcesCompleted: 5, sourcesTotal: 5, listingsNew: 42, isComplete: true }
     if (runId === 'run-failed') return { status: 'failed', sourcesCompleted: 0, sourcesTotal: 3, listingsNew: 0, isComplete: true }
     return { status: null, sourcesCompleted: 0, sourcesTotal: 0, listingsNew: 0, isComplete: false }
@@ -21,10 +22,16 @@ describe('DiscoveryBanner', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('[P1] should show running state with progress', () => {
-    render(<DiscoveryBanner runId="run-running" />)
-    expect(screen.getByText('Discovering jobs...')).toBeDefined()
-    expect(screen.getByText('2/5 sources complete')).toBeDefined()
+  it('[P1] should show fetching state with progress', () => {
+    render(<DiscoveryBanner runId="run-fetching" />)
+    expect(screen.getByText('Finding new opportunities for you')).toBeDefined()
+    expect(screen.getByText(/2 of 5 sources checked/)).toBeDefined()
+  })
+
+  it('[P1] should show scoring state', () => {
+    render(<DiscoveryBanner runId="run-scoring" />)
+    expect(screen.getByText('Matching jobs to your profile')).toBeDefined()
+    expect(screen.getByText(/Analyzing and matching each listing/)).toBeDefined()
   })
 
   it('[P1] should show completed state with listings count', () => {

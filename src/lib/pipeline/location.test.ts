@@ -174,8 +174,27 @@ describe('extractCountry', () => {
       expect(extractCountry('Multiple Locations')).toBe('Unknown')
     })
 
-    it('should return "Unknown" for "EMEA"', () => {
-      expect(extractCountry('EMEA')).toBe('Unknown')
+    it('should return "INTL" for "EMEA"', () => {
+      expect(extractCountry('EMEA')).toBe('INTL')
+    })
+
+    it('should return "INTL" for region acronyms', () => {
+      expect(extractCountry('APAC')).toBe('INTL')
+      expect(extractCountry('APAC-C1')).toBe('INTL')
+      expect(extractCountry('Asia')).toBe('INTL')
+      expect(extractCountry('LATAM')).toBe('INTL')
+      expect(extractCountry('Europe')).toBe('INTL')
+    })
+
+    it('should extract country from city names', () => {
+      expect(extractCountry('Mexico City')).toBe('MX')
+      expect(extractCountry('Singapore')).toBe('SG')
+      expect(extractCountry('Toronto')).toBe('CA')
+      expect(extractCountry('Berlin')).toBe('DE')
+    })
+
+    it('should handle semicolon-separated locations', () => {
+      expect(extractCountry('Georgia; Singapore; Sri Lanka; Uzbekistan')).toBe('LK')
     })
 
     it('should handle whitespace-only input', () => {

@@ -64,7 +64,7 @@ export const jobsTable = pgTable(
     sources: jsonb('sources').default(sql`'[]'::jsonb`),
     dedupConfidence: real('dedup_confidence'),
     matchScore: integer('match_score'),
-    extractedRequirements: jsonb('extracted_requirements'),
+    extractedProfile: jsonb('extracted_profile'),
     matchBreakdown: jsonb('match_breakdown'),
     pipelineStage: text('pipeline_stage').default('discovered'),
     discoveredAt: timestamp('discovered_at', { withTimezone: true }),
@@ -129,6 +129,7 @@ export const resumesTable = pgTable('resumes', {
   parsedData: jsonb('parsed_data'),
   skills: jsonb('skills'),
   experience: jsonb('experience'),
+  resumeExtraction: jsonb('resume_extraction'),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

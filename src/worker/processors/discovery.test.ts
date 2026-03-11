@@ -59,9 +59,19 @@ vi.mock('@/lib/db/queries/resume', () => ({
     parsedData: null,
     skills: ['TypeScript', 'React', 'Node.js'],
     experience: [{ title: 'Software Engineer', company: 'Acme', years: 5 }],
+    resumeExtraction: {
+      title: 'Software Engineer',
+      domain: 'Software Engineering',
+      seniorityLevel: 'senior',
+      yearsExperience: 5,
+      hardSkills: ['TypeScript', 'React', 'Node.js'],
+      softSkills: [],
+      certifications: [],
+    },
     uploadedAt: new Date(),
     updatedAt: new Date(),
   }),
+  updateResumeExtraction: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/db/queries/sources', () => ({
@@ -158,12 +168,25 @@ vi.mock('@/lib/pipeline/scoring', () => ({
     return {
       matchScore: 75,
       matchBreakdown: {
-        skills: { score: 80, weight: 0.35, signals: { keyword: 0.8, semantic: null } },
-        requirements: { score: 75, weight: 0.25, signals: { keyword: 0.75, semantic: null } },
-        experience: { score: 70, weight: 0.20, signals: { keyword: null, semantic: 0.7 } },
-        salary: { score: 50, weight: 0.20, signals: { keyword: null, semantic: null } },
+        skills: { score: 80, weight: 0.40, signals: { keyword: null, semantic: 0.55 } },
+        experience: { score: 70, weight: 0.30, signals: { keyword: null, semantic: 0.5 } },
+        salary: { score: 50, weight: 0.30, signals: { keyword: null, semantic: null } },
+        domainMultiplier: 65,
       },
     }
+  }),
+  extractResumeProfile: vi.fn().mockResolvedValue({
+    title: 'Software Engineer',
+    domain: 'Software Engineering',
+    seniorityLevel: 'senior',
+    yearsExperience: 5,
+    hardSkills: ['TypeScript', 'React', 'Node.js'],
+    softSkills: [],
+    certifications: [],
+  }),
+  embedProfile: vi.fn().mockResolvedValue({
+    hardSkills: new Float32Array(384),
+    title: new Float32Array(384),
   }),
 }))
 
@@ -190,7 +213,7 @@ describe('discoveryProcessor', () => {
     )
   })
 
-  it('[P1] should execute full pipeline flow: fetch → normalize → embed → dedup → insert → score', async () => {
+  it('[P1] should execute two-phase pipeline: parallel fetch, then normalize → embed → dedup → insert → score', async () => {
     const { computeEmbedding } = await import('@/lib/ai/embeddings')
     const { normalize } = await import('@/lib/pipeline/normalizer')
     const { deduplicate } = await import('@/lib/pipeline/deduplicator')
@@ -203,14 +226,12 @@ describe('discoveryProcessor', () => {
     expect(computeEmbedding).toHaveBeenCalled()
     expect(deduplicate).toHaveBeenCalledOnce()
     expect(scoreJob).toHaveBeenCalled()
-    // Verify INSERT was called for new jobs (onConflictDoNothing)
     expect(mockInsertOnConflict).toHaveBeenCalled()
   })
 
-  it('[P1] should execute dedup BEFORE insert (correct pipeline ordering)', async () => {
+  it('[P1] should execute dedup BEFORE insert and score (correct pipeline ordering)', async () => {
     await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
 
-    // normalize must come before deduplicate, which must come before score
     const normalizeIdx = callOrder.indexOf('normalize')
     const dedupIdx = callOrder.indexOf('deduplicate')
     const scoreIdx = callOrder.indexOf('score')
@@ -219,8 +240,7 @@ describe('discoveryProcessor', () => {
     expect(dedupIdx).toBeLessThan(scoreIdx)
   })
 
-  it('[P1] should not block other sources if one adapter fails', async () => {
-    // Set up two sources
+  it('[P1] should not block other sources if one adapter fails (parallel fetch)', async () => {
     mockSelectResult.length = 0
     mockSelectResult.push(
       { id: 'src-1', name: 'remoteok', isEnabled: true, config: null },
@@ -247,26 +267,60 @@ describe('discoveryProcessor', () => {
       sourceNames: ['remoteok', 'himalayas'],
     }))
 
-    // The working adapter should still be called
+    // Both fetches fire (parallel), failing one doesn't block working one
+    expect(failingAdapter.fetchListings).toHaveBeenCalledOnce()
     expect(mockFetchListings).toHaveBeenCalledOnce()
     // Pipeline completes (completedAt is set)
     expect(mockUpdateWhere).toHaveBeenCalled()
   })
 
-  it('[P1] should update pipeline run record incrementally', async () => {
+  it('[P1] should fetch all sources in parallel', async () => {
+    mockSelectResult.length = 0
+    mockSelectResult.push(
+      { id: 'src-1', name: 'remoteok', isEnabled: true, config: null },
+      { id: 'src-2', name: 'himalayas', isEnabled: true, config: null },
+    )
+
+    const fetchTimestamps: number[] = []
+    const slowFetch = vi.fn().mockImplementation(async () => {
+      fetchTimestamps.push(Date.now())
+      return [{ source_name: 'himalayas', external_id: 'ext-2', title: 'Dev', company: 'Co', source_url: 'https://example.com/2', description_text: 'Test', raw_data: {} }]
+    })
+    const fastFetch = vi.fn().mockImplementation(async () => {
+      fetchTimestamps.push(Date.now())
+      return [{ source_name: 'remoteok', external_id: 'ext-1', title: 'Dev', company: 'Co', source_url: 'https://example.com/1', description_text: 'Test', raw_data: {} }]
+    })
+
+    const { getEnabledAdapters } = await import('@/lib/adapters/registry')
+    vi.mocked(getEnabledAdapters).mockReturnValue([
+      { name: 'remoteok', displayName: 'RemoteOK', type: 'open', fetchListings: fastFetch },
+      { name: 'himalayas', displayName: 'Himalayas', type: 'open', fetchListings: slowFetch },
+    ])
+
+    await discoveryProcessor(createMockJob({
+      runId: 'run-123',
+      sourceNames: ['remoteok', 'himalayas'],
+    }))
+
+    // Both fetches were called
+    expect(fastFetch).toHaveBeenCalledOnce()
+    expect(slowFetch).toHaveBeenCalledOnce()
+    // Timestamps should be very close (parallel, not sequential)
+    expect(Math.abs(fetchTimestamps[0] - fetchTimestamps[1])).toBeLessThan(50)
+  })
+
+  it('[P1] should update pipeline run record', async () => {
     await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
 
-    // Multiple update calls for counters + completion
     expect(mockUpdateWhere).toHaveBeenCalled()
     const callCount = mockUpdateWhere.mock.calls.length
-    // At minimum: sourcesAttempted, sourcesSucceeded+counters, sourceHealth, completedAt, score update
+    // At minimum: sourcesAttempted, sourcesSucceeded+counters, sourceHealth, dedup counters, completedAt, score update
     expect(callCount).toBeGreaterThanOrEqual(4)
   })
 
   it('[P1] should set completedAt on pipeline completion', async () => {
     await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
 
-    // The last update should set completedAt
     expect(mockUpdateWhere).toHaveBeenCalled()
   })
 
@@ -275,19 +329,16 @@ describe('discoveryProcessor', () => {
 
     await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
 
-    // Embedding must be computed before deduplicate is called
     const embeddingCalls = vi.mocked(computeEmbedding).mock.calls
     expect(embeddingCalls.length).toBeGreaterThanOrEqual(1)
 
-    // verify call order: embedding happens before dedup
     const dedupIdx = callOrder.indexOf('deduplicate')
-    expect(dedupIdx).toBeGreaterThan(0) // dedup was called after other steps
+    expect(dedupIdx).toBeGreaterThan(0)
   })
 
   it('[P1] should only INSERT new jobs from dedup result (not all normalized jobs)', async () => {
     const { deduplicate } = await import('@/lib/pipeline/deduplicator')
 
-    // Mock dedup returning 1 new, 1 updated (updated = already in DB)
     vi.mocked(deduplicate).mockResolvedValueOnce({
       new: [
         {
@@ -328,9 +379,6 @@ describe('discoveryProcessor', () => {
   it('[P2] should handle empty adapter result gracefully', async () => {
     mockFetchListings.mockResolvedValueOnce([])
 
-    const { normalize } = await import('@/lib/pipeline/normalizer')
-    vi.mocked(normalize).mockResolvedValueOnce({ normalized: [], skippedCount: 0 })
-
     await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
 
     // Should complete without errors
@@ -350,11 +398,9 @@ describe('discoveryProcessor', () => {
   })
 
   it('[P2] should handle missing preferences gracefully', async () => {
-    // preferences query returns empty
-    // This is handled by default empty arrays in loadPreferences
-    await discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] }))
-
-    // Should complete without errors
-    expect(mockFetchListings).toHaveBeenCalled()
+    // Should complete without throwing even if preferences are empty/missing
+    await expect(
+      discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['remoteok'] })),
+    ).resolves.not.toThrow()
   })
 })

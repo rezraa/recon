@@ -66,9 +66,24 @@ export async function updateResumeParsedData(data: {
       parsedData: data.parsedData,
       skills: data.skills,
       experience: data.experience,
+      resumeExtraction: null, // clear cached extraction on re-parse
       updatedAt: sql`now()`,
     })
     .where(eq(resumesTable.id, existing.id))
     .returning()
   return results[0]
+}
+
+export async function updateResumeExtraction(extraction: unknown): Promise<void> {
+  const db = getDb()
+  const existing = await getResume()
+  if (!existing) return
+
+  await db
+    .update(resumesTable)
+    .set({
+      resumeExtraction: extraction,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(resumesTable.id, existing.id))
 }

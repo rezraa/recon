@@ -6,13 +6,18 @@ import type { AdapterConfig, SourceAdapter } from '@/lib/adapters/types'
 import { computeEmbedding } from '@/lib/ai/embeddings'
 import { getDb } from '@/lib/db/client'
 import { getPreferences } from '@/lib/db/queries/preferences'
-import { getResume } from '@/lib/db/queries/resume'
+import { getResume, updateResumeExtraction } from '@/lib/db/queries/resume'
 import { getSourceApiKey } from '@/lib/db/queries/sources'
 import * as schema from '@/lib/db/schema'
 import { deduplicate } from '@/lib/pipeline/deduplicator'
-import { normalize, type NormalizeOptions } from '@/lib/pipeline/normalizer'
-import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
-import { scoreJob } from '@/lib/pipeline/scoring'
+import { normalize } from '@/lib/pipeline/normalizer'
+import {
+  scoreJob,
+  extractResumeProfile,
+  embedProfile,
+  type ProfileExtraction,
+  type EmbeddedProfile,
+} from '@/lib/pipeline/scoring'
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
 import { log } from '../logger'
@@ -30,9 +35,19 @@ interface SourceError {
   timestamp: string
 }
 
+interface FetchResult {
+  source: string
+  listings: Awaited<ReturnType<SourceAdapter['fetchListings']>>
+}
+
 // ─── Resume Loading ─────────────────────────────────────────────────────────
 
-async function loadResume(): Promise<ParsedResume | null> {
+interface LoadedResume {
+  profile: ProfileExtraction
+  embeddings: EmbeddedProfile
+}
+
+async function loadResumeForScoring(): Promise<LoadedResume | null> {
   const resumeRow = await getResume()
   if (!resumeRow) return null
 
@@ -40,9 +55,24 @@ async function loadResume(): Promise<ParsedResume | null> {
   const experience = Array.isArray(resumeRow.experience)
     ? (resumeRow.experience as Array<{ title: string; company: string; years: number | null }>)
     : []
-  const jobTitles = experience.map((e) => e.title).filter(Boolean)
 
-  return { skills, experience, jobTitles }
+  if (skills.length === 0 && experience.length === 0) return null
+
+  // Check for cached extraction
+  let profile = resumeRow.resumeExtraction as ProfileExtraction | null
+  if (!profile || !profile.hardSkills || profile.hardSkills.length === 0) {
+    log('info', 'pipeline.resume.extract', { reason: 'no cached extraction' })
+    profile = await extractResumeProfile(skills, experience)
+    await updateResumeExtraction(profile)
+    log('info', 'pipeline.resume.extract.done', {
+      hardSkills: profile.hardSkills.length,
+      title: profile.title,
+    })
+  }
+
+  const embeddings = await embedProfile(profile)
+
+  return { profile, embeddings }
 }
 
 // ─── Preferences Loading ────────────────────────────────────────────────────
@@ -118,7 +148,7 @@ async function loadSalaryTarget(): Promise<number | null> {
 
 async function scoreAndUpdateJobs(
   jobs: NormalizedJob[],
-  resume: ParsedResume,
+  resume: LoadedResume,
   salaryTarget: number | null,
 ): Promise<void> {
   const db = getDb()
@@ -128,13 +158,19 @@ async function scoreAndUpdateJobs(
     const batch = jobs.slice(i, i + BATCH_SIZE)
     await Promise.all(
       batch.map(async (job) => {
-        const { matchScore, matchBreakdown, extractedRequirements } = await scoreJob(job, resume, salaryTarget)
+        const { matchScore, matchBreakdown, extractedProfile } = await scoreJob(
+          job, resume.profile, resume.embeddings, salaryTarget,
+        )
         await db
           .update(schema.jobsTable)
           .set({
             matchScore,
             matchBreakdown,
-            ...(extractedRequirements ? { extractedRequirements } : {}),
+            ...(extractedProfile ? {
+              extractedProfile,
+              // LLM-extracted benefits replace normalizer's regex-based extraction
+              ...(extractedProfile.benefits?.length ? { benefits: extractedProfile.benefits } : {}),
+            } : {}),
           })
           .where(
             and(
@@ -233,77 +269,129 @@ async function updateSourceHealth(
   }
 }
 
-// ─── Process Single Source ──────────────────────────────────────────────────
+// ─── Phase 1: Fetch all sources in parallel ─────────────────────────────────
 
-async function processSource(
-  adapter: SourceAdapter,
-  adapterConfig: AdapterConfig,
-  resume: ParsedResume | null,
-  salaryTarget: number | null,
-): Promise<{ fetched: number; newCount: number; deduplicated: number }> {
-  // 1. Fetch
-  log('info', 'pipeline.source.fetch.start', { source: adapter.name })
-  const rawListings = await adapter.fetchListings(adapterConfig)
-  log('info', 'pipeline.source.fetch.done', { source: adapter.name, count: rawListings.length })
+async function fetchAllSources(
+  adapters: SourceAdapter[],
+  preferences: AdapterConfig['preferences'],
+  runId: string,
+): Promise<FetchResult[]> {
+  // Set sourcesAttempted to total count up front
+  await incrementRunCounters(runId, { sourcesAttempted: adapters.length })
 
-  if (rawListings.length === 0) {
-    return { fetched: 0, newCount: 0, deduplicated: 0 }
+  // Fire all fetches in parallel
+  const results = await Promise.allSettled(
+    adapters.map(async (adapter): Promise<FetchResult> => {
+      const apiKey = await getSourceApiKey(adapter.name)
+      const adapterConfig: AdapterConfig = {
+        apiKey: apiKey ?? undefined,
+        preferences,
+      }
+
+      log('info', 'pipeline.source.fetch.start', { source: adapter.name })
+      const listings = await adapter.fetchListings(adapterConfig)
+      log('info', 'pipeline.source.fetch.done', { source: adapter.name, count: listings.length })
+
+      return { source: adapter.name, listings }
+    }),
+  )
+
+  // Process results — update counters and health per source
+  const successfulFetches: FetchResult[] = []
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
+    const adapter = adapters[i]
+
+    if (result.status === 'fulfilled') {
+      await incrementRunCounters(runId, {
+        sourcesSucceeded: 1,
+        listingsFetched: result.value.listings.length,
+      })
+      await updateSourceHealth(adapter.name, true)
+      successfulFetches.push(result.value)
+    } else {
+      const errorMessage = result.reason instanceof Error ? result.reason.message : String(result.reason)
+      log('error', 'pipeline.source.error', { source: adapter.name, error: errorMessage })
+
+      await incrementRunCounters(runId, { sourcesFailed: 1 })
+      await appendRunError(runId, {
+        source: adapter.name,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      })
+      await updateSourceHealth(adapter.name, false, errorMessage)
+    }
   }
 
-  // 2. Normalize — skip expensive benefits extraction on re-fetches
-  const db = getDb()
-  const existingCount = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(schema.jobsTable)
-    .where(eq(schema.jobsTable.sourceName, adapter.name))
-    .then((rows) => rows[0]?.count ?? 0)
+  return successfulFetches
+}
 
-  const normalizeOpts: NormalizeOptions = existingCount > 0 ? { skipBenefits: true } : {}
-  const { normalized } = await normalize(rawListings, normalizeOpts)
-  log('info', 'pipeline.source.normalize.done', {
-    source: adapter.name,
-    count: normalized.length,
-    skipBenefits: normalizeOpts.skipBenefits ?? false,
-  })
+// ─── Phase 2: Normalize, embed, dedup, insert, score ────────────────────────
 
-  // 3. Embed (in-memory — populates job.embedding before dedup)
-  await embedJobs(normalized)
-  log('info', 'pipeline.source.embed.done', { source: adapter.name, count: normalized.length })
+async function processAllJobs(
+  fetches: FetchResult[],
+  resume: LoadedResume | null,
+  salaryTarget: number | null,
+  runId: string,
+): Promise<void> {
+  // Normalize and embed each source's listings sequentially (CPU-bound)
+  const allNormalized: NormalizedJob[] = []
 
-  // 4. Deduplicate (queries DB for existing records — BEFORE insert)
+  for (const { source, listings } of fetches) {
+    if (listings.length === 0) continue
+
+    const { normalized } = await normalize(listings)
+    log('info', 'pipeline.source.normalize.done', {
+      source,
+      count: normalized.length,
+    })
+
+    await embedJobs(normalized)
+    log('info', 'pipeline.source.embed.done', { source, count: normalized.length })
+
+    allNormalized.push(...normalized)
+  }
+
+  if (allNormalized.length === 0) {
+    log('info', 'pipeline.process.skip', { reason: 'no jobs to process' })
+    return
+  }
+
+  log('info', 'pipeline.process.start', { totalJobs: allNormalized.length })
+
+  // Single dedup pass across all sources
   const dedupDb = getDb() as unknown as Parameters<typeof deduplicate>[1]
-  const dedupResult = await deduplicate(normalized, dedupDb)
-  log('info', 'pipeline.source.dedup.done', {
-    source: adapter.name,
+  const dedupResult = await deduplicate(allNormalized, dedupDb)
+  log('info', 'pipeline.dedup.done', {
     new: dedupResult.new.length,
     duplicates: dedupResult.duplicateCount,
   })
 
-  // 5. Insert only NEW jobs into DB (dedup already updated existing records)
+  // Single insert pass
   await insertNewJobs(dedupResult.new)
-  log('info', 'pipeline.source.insert.done', { source: adapter.name, count: dedupResult.new.length })
+  log('info', 'pipeline.insert.done', { count: dedupResult.new.length })
 
-  // 6. Score only NEW jobs and updated jobs that lack a score
+  // Update run counters for dedup/insert
+  await incrementRunCounters(runId, {
+    listingsNew: dedupResult.new.length,
+    listingsDeduplicated: dedupResult.duplicateCount,
+  })
+
+  // Single scoring pass — all new jobs + unscored duplicates
   if (resume) {
-    const jobsToScore = dedupResult.new
-    // For updated (duplicate) jobs, only re-score if they had no score before
+    const jobsToScore = [...dedupResult.new]
     if (dedupResult.updatedNeedScore) {
       jobsToScore.push(...dedupResult.updatedNeedScore)
     }
     if (jobsToScore.length > 0) {
+      log('info', 'pipeline.score.start', { count: jobsToScore.length })
       await scoreAndUpdateJobs(jobsToScore, resume, salaryTarget)
+      log('info', 'pipeline.score.done', {
+        scored: jobsToScore.length,
+        skippedAlreadyScored: dedupResult.updated.length - (dedupResult.updatedNeedScore?.length ?? 0),
+      })
     }
-    log('info', 'pipeline.source.score.done', {
-      source: adapter.name,
-      scored: jobsToScore.length,
-      skippedAlreadyScored: dedupResult.updated.length - (dedupResult.updatedNeedScore?.length ?? 0),
-    })
-  }
-
-  return {
-    fetched: rawListings.length,
-    newCount: dedupResult.new.length,
-    deduplicated: dedupResult.duplicateCount,
   }
 }
 
@@ -315,7 +403,7 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
 
   // Load resume, preferences, and salary target
   const [resume, preferences, salaryTarget] = await Promise.all([
-    loadResume(),
+    loadResumeForScoring(),
     loadPreferences(),
     loadSalaryTarget(),
   ])
@@ -332,44 +420,16 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
     .map((s) => ({ name: s.name, isEnabled: true as boolean }))
   const adapters = getEnabledAdapters(enabledSources)
 
-  // Process each source
-  for (const adapter of adapters) {
-    await incrementRunCounters(runId, { sourcesAttempted: 1 })
+  // Phase 1: Fetch all sources in parallel (network I/O only)
+  const fetches = await fetchAllSources(adapters, preferences, runId)
+  log('info', 'pipeline.fetch.allDone', {
+    succeeded: fetches.length,
+    failed: adapters.length - fetches.length,
+    totalListings: fetches.reduce((sum, f) => sum + f.listings.length, 0),
+  })
 
-    try {
-      // Build adapter config
-      const apiKey = await getSourceApiKey(adapter.name)
-      const adapterConfig: AdapterConfig = {
-        apiKey: apiKey ?? undefined,
-        preferences,
-      }
-
-      const stats = await processSource(adapter, adapterConfig, resume, salaryTarget)
-
-      await incrementRunCounters(runId, {
-        sourcesSucceeded: 1,
-        listingsFetched: stats.fetched,
-        listingsNew: stats.newCount,
-        listingsDeduplicated: stats.deduplicated,
-      })
-
-      await updateSourceHealth(adapter.name, true)
-      log('info', 'pipeline.source.complete', { source: adapter.name, ...stats })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      log('error', 'pipeline.source.error', { source: adapter.name, error: errorMessage })
-
-      await incrementRunCounters(runId, { sourcesFailed: 1 })
-      await appendRunError(runId, {
-        source: adapter.name,
-        error: errorMessage,
-        timestamp: new Date().toISOString(),
-      })
-      await updateSourceHealth(adapter.name, false, errorMessage)
-
-      // Continue processing other sources — no blocking
-    }
-  }
+  // Phase 2: Normalize → embed → dedup → insert → score (sequential, one pass)
+  await processAllJobs(fetches, resume, salaryTarget, runId)
 
   // Complete the run
   await completeRun(runId)

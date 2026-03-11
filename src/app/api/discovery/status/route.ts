@@ -29,19 +29,30 @@ export async function GET(request: NextRequest) {
   }
 
   // Derive status
-  // 'running' = still in progress, 'completed' = done (may have partial source errors),
+  // 'fetching' = sources still being checked
+  // 'scoring' = all sources done, scoring/inserting in progress (no completedAt yet)
+  // 'completed' = done (may have partial source errors)
   // 'failed' = done but ALL sources failed (zero succeeded)
-  let status: 'running' | 'completed' | 'failed'
+  // Stale detection: if started > 5 min ago with no completedAt, treat as completed
+  const STALE_MS = 5 * 60 * 1000
+  const sourcesCompleted = (run.sourcesSucceeded ?? 0) + (run.sourcesFailed ?? 0)
+  const sourcesTotal = (run.sourcesAttempted ?? 0)
+
+  let status: 'fetching' | 'scoring' | 'completed' | 'failed'
   if (!run.completedAt) {
-    status = 'running'
+    const age = Date.now() - new Date(run.startedAt!).getTime()
+    if (age > STALE_MS) {
+      status = (run.sourcesSucceeded ?? 0) > 0 ? 'completed' : 'failed'
+    } else if (sourcesTotal > 0 && sourcesCompleted >= sourcesTotal) {
+      status = 'scoring'
+    } else {
+      status = 'fetching'
+    }
   } else if ((run.sourcesSucceeded ?? 0) === 0 && (run.sourcesFailed ?? 0) > 0) {
     status = 'failed'
   } else {
     status = 'completed'
   }
-
-  const sourcesCompleted = (run.sourcesSucceeded ?? 0) + (run.sourcesFailed ?? 0)
-  const sourcesTotal = (run.sourcesAttempted ?? 0)
 
   return NextResponse.json({
     data: {

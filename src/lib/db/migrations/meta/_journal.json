@@ -50,6 +50,20 @@
       "when": 1773167295575,
       "tag": "0006_add-country-column",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773302400001,
+      "tag": "0007_techstack-to-industry-and-extracted-requirements",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773388800000,
+      "tag": "0008_scoring-v2-extraction-columns",
+      "breakpoints": true
     }
   ]
 }

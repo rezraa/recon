@@ -119,6 +119,9 @@
   --tag-pto:      hsl(180, 55%, 72%);
   --tag-401k:     hsl(40, 70%, 76%);
   --tag-equity:   hsl(280, 50%, 78%);
+  --tag-bonus:    hsl(145, 55%, 72%);
+  --tag-parental: hsl(330, 50%, 76%);
+  --tag-pet:      hsl(90, 50%, 72%);
 
   /* Brand — NOTE: --primary, --accent, --destructive are defined above as shadcn
      oklch variables mapped to our design token values. Use those directly.
@@ -182,17 +185,24 @@ html.light {
   --tag-pto:      hsl(180, 45%, 32%);
   --tag-401k:     hsl(40, 60%, 33%);
   --tag-equity:   hsl(280, 40%, 42%);
+  --tag-bonus:    hsl(145, 50%, 28%);
+  --tag-parental: hsl(330, 40%, 40%);
+  --tag-pet:      hsl(90, 45%, 30%);
 }
 
 /* =============================================================================
    Dark Theme Component-Level Defaults (from visual mock)
    ============================================================================= */
 .benefit-tag { background: hsl(0, 0%, 100%, 0.06); }
+.list-tag { background: hsl(0, 0%, 100%, 0.06); }
 .tag-remote { color: var(--tag-remote); background: hsl(205, 70%, 76%, 0.12); }
 .tag-health { color: var(--tag-health); background: hsl(15, 65%, 76%, 0.12); }
 .tag-pto { color: var(--tag-pto); background: hsl(180, 55%, 72%, 0.12); }
 .tag-401k { color: var(--tag-401k); background: hsl(40, 70%, 76%, 0.12); }
 .tag-equity { color: var(--tag-equity); background: hsl(280, 50%, 78%, 0.12); }
+.tag-bonus { color: var(--tag-bonus); background: hsl(145, 55%, 72%, 0.12); }
+.tag-parental { color: var(--tag-parental); background: hsl(330, 50%, 76%, 0.12); }
+.tag-pet { color: var(--tag-pet); background: hsl(90, 50%, 72%, 0.12); }
 .filter-chip.active { background: hsl(210, 65%, 75%, 0.15); border-color: var(--primary); color: var(--primary); }
 .job-list-row.selected { background: hsl(210, 65%, 75%, 0.08); border-left: 2px solid var(--primary); }
 .ph-discovered .pipeline-header { background: hsl(205, 70%, 76%, 0.12); color: var(--pipeline-discovered); }
@@ -232,12 +242,18 @@ html.light .list-tag.tag-health { background: hsl(15, 50%, 92%); color: var(--ta
 html.light .list-tag.tag-pto { background: hsl(180, 40%, 91%); color: var(--tag-pto); }
 html.light .list-tag.tag-401k { background: hsl(40, 50%, 90%); color: var(--tag-401k); }
 html.light .list-tag.tag-equity { background: hsl(280, 40%, 93%); color: var(--tag-equity); }
+html.light .list-tag.tag-bonus { background: hsl(145, 45%, 91%); color: var(--tag-bonus); }
+html.light .list-tag.tag-parental { background: hsl(330, 40%, 93%); color: var(--tag-parental); }
+html.light .list-tag.tag-pet { background: hsl(90, 40%, 91%); color: var(--tag-pet); }
 html.light .detail-tag { background: hsl(0, 0%, 0%, 0.04); }
 html.light .detail-tag.tag-remote { background: hsl(205, 50%, 92%); color: var(--tag-remote); }
 html.light .detail-tag.tag-health { background: hsl(15, 50%, 92%); color: var(--tag-health); }
 html.light .detail-tag.tag-pto { background: hsl(180, 40%, 91%); color: var(--tag-pto); }
 html.light .detail-tag.tag-401k { background: hsl(40, 50%, 90%); color: var(--tag-401k); }
 html.light .detail-tag.tag-equity { background: hsl(280, 40%, 93%); color: var(--tag-equity); }
+html.light .detail-tag.tag-bonus { background: hsl(145, 45%, 91%); color: var(--tag-bonus); }
+html.light .detail-tag.tag-parental { background: hsl(330, 40%, 93%); color: var(--tag-parental); }
+html.light .detail-tag.tag-pet { background: hsl(90, 40%, 91%); color: var(--tag-pet); }
 html.light .detail-overlay { background: var(--bg-elevated); }
 html.light .briefing-headline { color: var(--fg); }
 html.light .briefing-title { color: var(--fg-muted); }
@@ -262,6 +278,25 @@ html.light .source-card { background: var(--bg-elevated); }
     z-index: 9999;
   }
   #main { display: none; }
+}
+
+@keyframes pulse-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.discovery-pulse {
+  height: 2px;
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.discovery-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 50%;
+  background: linear-gradient(90deg, transparent, var(--match-high), transparent);
+  animation: pulse-sweep 1.8s ease-in-out infinite;
 }
 
 @layer base {

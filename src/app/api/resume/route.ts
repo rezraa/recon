@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { getResume, updateResumeParsedData, upsertResume } from '@/lib/db/queries/resume'
+import { getResume, updateResumeParsedData, updateResumeExtraction, upsertResume } from '@/lib/db/queries/resume'
 import { parseResume } from '@/lib/pipeline/resumeParser'
+import { extractResumeProfile } from '@/lib/pipeline/scoring'
 
 const parsedDataSchema = z.object({
   skills: z.array(z.string()),
@@ -103,6 +104,14 @@ async function handleFileUpload(request: Request) {
     experience: parsedData.experience,
   })
 
+  // Extract structured profile via LLM for v2 scoring (best-effort — don't fail upload)
+  try {
+    const extraction = await extractResumeProfile(parsedData.skills, parsedData.experience)
+    await updateResumeExtraction(extraction)
+  } catch {
+    // LLM may not be available in all environments — extraction will happen lazily on first score
+  }
+
   return NextResponse.json({
     data: {
       id: resume.id,
@@ -136,6 +145,14 @@ async function handleDataUpdate(request: Request) {
       { error: { code: 404, message: 'No resume found to update' } },
       { status: 404 },
     )
+  }
+
+  // Re-extract structured profile after data update (best-effort)
+  try {
+    const extraction = await extractResumeProfile(parsedData.skills, parsedData.experience)
+    await updateResumeExtraction(extraction)
+  } catch {
+    // LLM may not be available — extraction will happen lazily on first score
   }
 
   return NextResponse.json({

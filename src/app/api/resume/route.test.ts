@@ -4,10 +4,23 @@ vi.mock('@/lib/db/queries/resume', () => ({
   getResume: vi.fn(),
   upsertResume: vi.fn(),
   updateResumeParsedData: vi.fn(),
+  updateResumeExtraction: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/pipeline/resumeParser', () => ({
   parseResume: vi.fn(),
+}))
+
+vi.mock('@/lib/pipeline/scoring', () => ({
+  extractResumeProfile: vi.fn().mockResolvedValue({
+    title: 'Software Engineer',
+    domain: 'Software Engineering',
+    seniorityLevel: 'senior',
+    yearsExperience: 5,
+    hardSkills: ['TypeScript', 'React'],
+    softSkills: [],
+    certifications: [],
+  }),
 }))
 
 import { getResume, updateResumeParsedData, upsertResume } from '@/lib/db/queries/resume'

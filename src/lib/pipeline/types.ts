@@ -68,7 +68,7 @@ export interface NormalizerResult {
 
 export interface ScoringAxisResult {
   score: number        // 0-100 per axis
-  weight: number       // e.g. 0.35, 0.25, 0.20
+  weight: number       // e.g. 0.40, 0.30
   signals: {
     keyword: number | null   // keyword overlap score (0-1), null if no signal
     semantic: number | null  // embedding cosine similarity (0-1), null if no signal
@@ -77,9 +77,9 @@ export interface ScoringAxisResult {
 
 export interface MatchBreakdown {
   skills: ScoringAxisResult
-  requirements: ScoringAxisResult
   experience: ScoringAxisResult
   salary: ScoringAxisResult
+  domainMultiplier: number  // 0-100, applied as 0.0-1.0 gate
 }
 
 // Re-export for convenience

@@ -26,6 +26,7 @@ export function createJob(overrides?: Partial<JobRecord>): JobRecord {
     benefits: null,
     rawData: null,
     matchScore: null,
+    extractedProfile: null,
     matchBreakdown: null,
     pipelineStage: 'discovered',
     discoveredAt: faker.date.recent(),

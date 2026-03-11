@@ -32,6 +32,7 @@ export function createResume(overrides?: Partial<ResumeRecord>): ResumeRecord {
     fileName: `${faker.system.fileName({ extensionCount: 0 })}.pdf`,
     parsedData: parsed,
     skills: parsed.skills,
+    resumeExtraction: null,
     experience: [],
     uploadedAt,
     updatedAt: new Date(uploadedAt.getTime() + faker.number.int({ min: 0, max: 86400000 })),

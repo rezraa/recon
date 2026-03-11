@@ -2,7 +2,7 @@ import useSWR from 'swr'
 
 interface DiscoveryStatusResponse {
   data: {
-    status: 'running' | 'completed' | 'failed'
+    status: 'fetching' | 'scoring' | 'completed' | 'failed'
     sources_completed: number
     sources_total: number
     listings_new: number

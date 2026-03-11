@@ -3,10 +3,15 @@ import { and, eq } from 'drizzle-orm'
 
 import { getDb } from '@/lib/db/client'
 import { getPreferences } from '@/lib/db/queries/preferences'
-import { getResume } from '@/lib/db/queries/resume'
+import { getResume, updateResumeExtraction } from '@/lib/db/queries/resume'
 import * as schema from '@/lib/db/schema'
-import type { ParsedResume } from '@/lib/pipeline/resumeTypes'
-import { scoreJob } from '@/lib/pipeline/scoring'
+import {
+  scoreJob,
+  extractResumeProfile,
+  embedProfile,
+  type ProfileExtraction,
+  type EmbeddedProfile,
+} from '@/lib/pipeline/scoring'
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
 import { log } from '../logger'
@@ -33,9 +38,16 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
   const experience = Array.isArray(resumeRow.experience)
     ? (resumeRow.experience as Array<{ title: string; company: string; years: number | null }>)
     : []
-  const jobTitles = experience.map((e) => e.title).filter(Boolean)
 
-  const resume: ParsedResume = { skills, experience, jobTitles }
+  // Get or create resume extraction
+  let resumeProfile = resumeRow.resumeExtraction as ProfileExtraction | null
+  if (!resumeProfile || !resumeProfile.hardSkills || resumeProfile.hardSkills.length === 0) {
+    log('info', 'rescore.extract-resume', { reason: 'no cached extraction' })
+    resumeProfile = await extractResumeProfile(skills, experience)
+    await updateResumeExtraction(resumeProfile)
+  }
+
+  const resumeEmbeddings: EmbeddedProfile = await embedProfile(resumeProfile)
 
   // Load salary target from preferences
   const prefs = await getPreferences()
@@ -75,12 +87,10 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           pipelineStage: dbJob.pipelineStage ?? 'discovered',
         }
 
-        // Pass cached extracted requirements to avoid re-extraction via LLM
-        const cachedReqs = Array.isArray(dbJob.extractedRequirements)
-          ? dbJob.extractedRequirements as string[]
-          : null
-        const { matchScore, matchBreakdown, extractedRequirements } = await scoreJob(
-          normalizedJob, resume, salaryTarget, cachedReqs,
+        // Pass cached extracted profile to avoid re-extraction via LLM
+        const cachedProfile = dbJob.extractedProfile as ProfileExtraction | null
+        const { matchScore, matchBreakdown, extractedProfile } = await scoreJob(
+          normalizedJob, resumeProfile, resumeEmbeddings, salaryTarget, cachedProfile,
         )
 
         await db
@@ -88,7 +98,10 @@ export async function rescoreProcessor(job: Job<RescoreJobData>): Promise<void> 
           .set({
             matchScore,
             matchBreakdown,
-            ...(extractedRequirements ? { extractedRequirements } : {}),
+            ...(extractedProfile ? {
+              extractedProfile,
+              ...(extractedProfile.benefits?.length ? { benefits: extractedProfile.benefits } : {}),
+            } : {}),
           })
           .where(
             and(

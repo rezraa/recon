@@ -65,10 +65,19 @@ describe('Root Page - Feed', () => {
     expect(screen.queryByText('Recon')).toBeNull()
   })
 
-  it('[P1] should show empty state when no jobs exist', () => {
+  it('[P1] should auto-trigger discovery when feed is empty', async () => {
+    // Mock fetch for both /api/discovery/active (on mount) and /api/discovery/run (auto-trigger)
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/discovery/active')) {
+        return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ data: { runId: 'run-auto' } }), { status: 202, headers: { 'Content-Type': 'application/json' } })
+    })
     render(<Page />)
-    expect(screen.getByText('No jobs discovered yet. Run discovery to get started.')).toBeInTheDocument()
-    expect(screen.getByText('Run Discovery Now')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/discovery/run', { method: 'POST' })
+    })
   })
 
   it('[P1] should render job feed table when jobs exist', () => {
@@ -161,27 +170,45 @@ describe('Root Page - Feed', () => {
     expect(screen.getByText('$120k – $180k')).toBeInTheDocument()
   })
 
-  it('[P1] should start discovery and show starting state', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ data: { runId: 'run-1', status: 'running' } }), {
-        status: 202,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+  it('[P1] should start discovery via Run Discovery button', async () => {
+    // Need jobs so AutoDiscovery doesn't fire and the Run Discovery button appears
+    mockUseJobs.mockReturnValue({
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'remoteok', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      total: 1,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/discovery/active')) {
+        return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ data: { runId: 'run-1' } }), { status: 202, headers: { 'Content-Type': 'application/json' } })
+    })
     render(<Page />)
-    const button = screen.getByText('Run Discovery Now')
+    const button = screen.getByText('Run Discovery')
     fireEvent.click(button)
     await waitFor(() => {
-      expect(screen.getByText('Run Discovery Now')).toBeInTheDocument()
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/discovery/run', { method: 'POST' })
     })
   })
 
   it('[P1] should show error when discovery fails', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('error', { status: 500 }),
-    )
+    mockUseJobs.mockReturnValue({
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'remoteok', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      total: 1,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/discovery/active')) {
+        return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response('error', { status: 500 })
+    })
     render(<Page />)
-    const button = screen.getByText('Run Discovery Now')
+    const button = screen.getByText('Run Discovery')
     fireEvent.click(button)
     await waitFor(() => {
       expect(screen.getByText('Failed to start discovery. Please try again.')).toBeInTheDocument()

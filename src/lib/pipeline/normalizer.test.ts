@@ -203,58 +203,15 @@ describe('normalize', () => {
     })
   })
 
-  describe('benefits extraction (section-based)', () => {
-    it('[P1] should extract benefits from a Benefits section', async () => {
+  describe('benefits field', () => {
+    it('[P1] should set benefits to undefined (LLM extracts during scoring)', async () => {
       const { normalized } = await normalize([
         createRawListing({
-          description_text: 'Build amazing software.\nBenefits\n- Comprehensive health insurance\n- 401k retirement matching\n- Unlimited vacation days',
-        }),
-      ])
-      expect(normalized[0].benefits).toBeDefined()
-      expect(normalized[0].benefits!.length).toBe(3)
-      expect(normalized[0].benefits).toContain('Comprehensive health insurance')
-      expect(normalized[0].benefits).toContain('401k retirement matching')
-    })
-
-    it('[P1] should return undefined when no benefits section found', async () => {
-      const { normalized } = await normalize([
-        createRawListing({
-          description_text: 'Build amazing software products.',
+          description_text: 'Build amazing software. Benefits - Health insurance - 401k',
+          description_html: '<p>Build amazing software.</p><h3>Benefits</h3><ul><li>Health insurance</li><li>401k</li></ul>',
         }),
       ])
       expect(normalized[0].benefits).toBeUndefined()
-    })
-
-    it('[P1] should extract from "What We Offer" section', async () => {
-      const { normalized } = await normalize([
-        createRawListing({
-          description_text: 'Join our team.\nWhat We Offer\n• Four weeks paid vacation\n• Comprehensive medical coverage\n• Equity compensation',
-        }),
-      ])
-      expect(normalized[0].benefits).toBeDefined()
-      expect(normalized[0].benefits!.length).toBe(3)
-    })
-
-    it('[P1] should extract non-tech benefits (trades, healthcare)', async () => {
-      const { normalized } = await normalize([
-        createRawListing({
-          description_text: 'Requirements: Valid license.\nBenefits\n- Free PPE and tools provided\n- Shift differentials for night shifts\n- Union benefits package\n- Company vehicle for job sites',
-        }),
-      ])
-      expect(normalized[0].benefits).toBeDefined()
-      expect(normalized[0].benefits!.length).toBe(4)
-      expect(normalized[0].benefits).toContain('Free PPE and tools provided')
-      expect(normalized[0].benefits).toContain('Shift differentials for night shifts')
-    })
-
-    it('[P1] should extract from "Compensation & Benefits" section', async () => {
-      const { normalized } = await normalize([
-        createRawListing({
-          description_text: 'About the role.\nCompensation & Benefits\n- Competitive salary\n- Stock options\n- Remote work flexibility',
-        }),
-      ])
-      expect(normalized[0].benefits).toBeDefined()
-      expect(normalized[0].benefits!.length).toBe(3)
     })
   })
 

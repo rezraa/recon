@@ -2,16 +2,15 @@
 
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DiscoveryBanner } from '@/components/DiscoveryBanner'
-import { MatchBadge } from '@/components/MatchBadge'
+import { JobListRow } from '@/components/jobs/JobListRow'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -19,40 +18,20 @@ import {
 import { useJobs } from '@/hooks/useJobs'
 import { useResumeRedirect } from '@/hooks/useResume'
 
-function formatSalary(min: number | null, max: number | null): string {
-  const lo = min && min > 0 ? min : null
-  const hi = max && max > 0 ? max : null
-  if (lo && hi) return `$${Math.round(lo / 1000)}k – $${Math.round(hi / 1000)}k`
-  if (lo) return `$${Math.round(lo / 1000)}k+`
-  if (hi) return `Up to $${Math.round(hi / 1000)}k`
-  return '—'
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function SourceAttribution({ sources }: { sources: Array<{ name: string }> }) {
-  if (sources.length <= 1) {
-    return <span className="text-muted-foreground">{sources[0]?.name ?? '—'}</span>
-  }
-  return (
-    <span className="text-muted-foreground">
-      Found on {sources.length} sources
-    </span>
-  )
+/** Auto-trigger discovery when feed is empty and no run is active */
+function AutoDiscovery({ onStart }: { onStart: () => void }) {
+  const triggered = useRef(false)
+  useEffect(() => {
+    if (!triggered.current) {
+      triggered.current = true
+      onStart()
+    }
+  }, [onStart])
+  return null
 }
 
 export default function Home() {
-  const { isLoading: isResumeLoading } = useResumeRedirect({
+  const { data: resumeData, isLoading: isResumeLoading } = useResumeRedirect({
     redirectTo: '/onboarding',
     when: 'missing',
   })
@@ -70,14 +49,35 @@ export default function Home() {
   const [isStarting, setIsStarting] = useState(false)
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Restore active discovery run on page load (survives refresh)
+  useEffect(() => {
+    let cancelled = false
+    async function checkActiveRun() {
+      try {
+        const res = await fetch('/api/discovery/active')
+        if (!res.ok) return
+        const body = await res.json()
+        if (!cancelled && body.data?.runId) {
+          setRunId(body.data.runId)
+        }
+      } catch {
+        // Ignore — non-critical
+      }
+    }
+    checkActiveRun()
+    return () => { cancelled = true }
+  }, [])
+
   const handleDiscoveryComplete = useCallback(() => {
     mutate()
-    // Keep banner visible briefly, then clear
+    // Refresh again after a beat to catch any final score updates
+    setTimeout(() => mutate(), 2000)
+    // Keep banner visible briefly showing "Discovery complete", then clear
     if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current)
     bannerTimerRef.current = setTimeout(() => setRunId(null), 5000)
   }, [mutate])
 
-  if (isResumeLoading) {
+  if (isResumeLoading || !resumeData) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Skeleton className="h-10 w-48" />
@@ -107,7 +107,7 @@ export default function Home() {
   const isEmpty = !isLoading && jobs.length === 0
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-[1400px] px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Recon</h1>
@@ -161,67 +161,45 @@ export default function Home() {
       {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-6 w-[60px] rounded-full" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-6 w-16" />
+            </div>
           ))}
         </div>
       )}
 
-      {isEmpty && (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
-          <p className="text-muted-foreground">
-            No jobs discovered yet. Run discovery to get started.
-          </p>
-          <Button onClick={handleRunDiscovery} disabled={isStarting || runId !== null}>
-            Run Discovery Now
-          </Button>
-        </div>
+      {runId !== null && (
+        <div className="discovery-pulse" />
+      )}
+
+      {isEmpty && !runId && resumeData && (
+        <AutoDiscovery onStart={handleRunDiscovery} />
       )}
 
       {!isLoading && jobs.length > 0 && (
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[70px]">Match</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Salary</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Discovered</TableHead>
+              <TableHead className="w-[4%] text-center">Match</TableHead>
+              <TableHead className="w-[22%]">Title / Company</TableHead>
+              <TableHead className="w-[11%] text-center">Salary</TableHead>
+              <TableHead className="w-[8%] text-center">Work Style</TableHead>
+              <TableHead className="w-[12%] text-center">Location</TableHead>
+              <TableHead className="w-[25%] text-center">Benefits</TableHead>
+              <TableHead className="w-[8%] text-center">Source</TableHead>
+              <TableHead className="w-[10%] text-center">Discovered</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {jobs.map((job) => (
-              <TableRow key={job.id}>
-                <TableCell>
-                  <MatchBadge score={job.matchScore} />
-                </TableCell>
-                <TableCell className="font-medium">
-                  {job.sourceUrl ? (
-                    <a
-                      href={job.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {job.title ?? 'Untitled'}
-                    </a>
-                  ) : (
-                    job.title ?? 'Untitled'
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {job.company ?? '—'}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {formatSalary(job.salaryMin, job.salaryMax)}
-                </TableCell>
-                <TableCell className="text-sm">
-                  <SourceAttribution sources={job.sources ?? []} />
-                </TableCell>
-                <TableCell className="text-right text-sm text-muted-foreground">
-                  {formatDate(job.discoveredAt)}
-                </TableCell>
-              </TableRow>
+              <JobListRow key={job.id} job={job} />
             ))}
           </TableBody>
         </Table>

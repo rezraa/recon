@@ -164,6 +164,7 @@ describe('selectResumeSchema', () => {
       parsedData: { skills: ['TS'] },
       skills: ['TS'],
       experience: [],
+      resumeExtraction: null,
       uploadedAt: new Date(),
       updatedAt: new Date(),
     }
@@ -180,6 +181,7 @@ describe('selectResumeSchema', () => {
       parsedData: null,
       skills: null,
       experience: null,
+      resumeExtraction: null,
       uploadedAt: null,
       updatedAt: null,
     }

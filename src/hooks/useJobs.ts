@@ -17,6 +17,7 @@ export interface JobItem {
   pipelineStage: string
   discoveredAt: string | null
   isDismissed: boolean
+  benefits: string[] | null
 }
 
 interface JobsResponse {
@@ -36,6 +37,7 @@ export function useJobs(params?: { limit?: number; offset?: number; showAll?: bo
 
   const { data, error, isLoading, mutate } = useSWR<JobsResponse>(
     `/api/jobs${query ? `?${query}` : ''}`,
+    { refreshInterval: 10_000 },
   )
 
   return {

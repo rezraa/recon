@@ -23,6 +23,7 @@ const feedColumns = {
   pipelineStage: jobsTable.pipelineStage,
   country: jobsTable.country,
   discoveredAt: jobsTable.discoveredAt,
+  benefits: jobsTable.benefits,
 } as const
 
 /** Compute dynamic threshold: 75th percentile of scored jobs within country filter */

@@ -6,13 +6,6 @@ import { sanitizeHtml } from '@/lib/utils'
 import { extractCountry } from './location'
 import type { NormalizedJob, NormalizerResult, RawJobListing, SourceAttribution } from './types'
 
-// ─── Options ──────────────────────────────────────────────────────────────
-
-export interface NormalizeOptions {
-  /** Skip expensive benefits extraction (use when jobs will likely be deduped) */
-  skipBenefits?: boolean
-}
-
 // ─── Fingerprint ────────────────────────────────────────────────────────────
 
 /** Shared fingerprint generation — used by normalizer and deduplicator */
@@ -43,65 +36,9 @@ function sanitizeText(text: string): string {
     .trim()
 }
 
-/** Sanitize but preserve newlines (for section-based parsing like benefits) */
-function sanitizeTextPreserveNewlines(text: string): string {
-  return sanitizeHtml(text)
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/[^\S\n]+/g, ' ')   // collapse horizontal whitespace but keep \n
-    .replace(/\n\s*\n/g, '\n')   // collapse multiple blank lines
-    .trim()
-}
-
-// ─── Benefits Extraction (Section-Based — Domain-Agnostic) ─────────────────
-
-/** Section headers that indicate a benefits/perks section (structural, not domain-specific) */
-const BENEFITS_SECTION_PATTERN =
-  /\b(?:benefits|what we offer|perks|compensation\s*(?:&|and)\s*benefits|our benefits|employee benefits|why join us|why work here)\b/i
-
-/** Extract benefits by finding a benefits section and pulling bullet points verbatim */
-function extractBenefits(descriptionText: string): string[] | undefined {
-  if (!descriptionText || descriptionText.length < 10) return undefined
-
-  // Split text into lines and find the benefits section header
-  const lines = descriptionText.split(/\n/)
-  let sectionStart = -1
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim()
-    // A section header is typically a short line (< 60 chars) matching our pattern
-    if (line.length > 0 && line.length < 60 && BENEFITS_SECTION_PATTERN.test(line)) {
-      sectionStart = i + 1
-      break
-    }
-  }
-
-  if (sectionStart === -1) return undefined
-
-  // Extract bullet points / items until the next section header or end of text
-  const items: string[] = []
-  for (let i = sectionStart; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    // Stop at what looks like a new section header (short, all-caps or title-case, no bullet)
-    if (line.length < 60 && /^[A-Z][A-Z\s]{3,}$/.test(line)) break
-    if (line.length < 60 && !line.startsWith('-') && !line.startsWith('•') && !line.startsWith('*') && /^[A-Z][a-z]/.test(line) && !line.includes(':') && items.length > 0 && line.split(/\s+/).length <= 5) break
-
-    // Extract bullet items (strip leading bullet chars)
-    const cleaned = line.replace(/^[\s\-–—*•●◦▪·]+/, '').trim()
-    if (cleaned.length >= 5 && cleaned.length < 200) {
-      items.push(cleaned)
-    }
-  }
-
-  return items.length > 0 ? items : undefined
-}
-
 // ─── Normalizer ─────────────────────────────────────────────────────────────
 
-export async function normalize(raw: RawJobListing[], options?: NormalizeOptions): Promise<NormalizerResult> {
+export async function normalize(raw: RawJobListing[]): Promise<NormalizerResult> {
   const normalized: NormalizedJob[] = []
   let skippedCount = 0
   const seenFingerprints = new Set<string>()
@@ -129,12 +66,6 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
       const isRemote = listing.is_remote ?? inferRemote(listing.location)
 
       const descriptionText = sanitizeText(listing.description_text)
-
-      // Extract benefits from section-based parsing (no ML model needed)
-      // Use newline-preserving sanitization so section headers are detectable
-      const benefits = options?.skipBenefits ? undefined : extractBenefits(
-        sanitizeTextPreserveNewlines(listing.description_text),
-      )
 
       // Prepare search text for tsvector population at DB insert time
       const searchText = [title, company, descriptionText].filter(Boolean).join(' ')
@@ -169,7 +100,7 @@ export async function normalize(raw: RawJobListing[], options?: NormalizeOptions
         country,
         sourceUrl: listing.source_url,
         applyUrl: listing.apply_url,
-        benefits,
+        benefits: undefined,
         rawData: listing.raw_data,
         fingerprint,
         searchText,

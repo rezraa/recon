@@ -34,10 +34,10 @@ describe('GET /api/discovery/status', () => {
     mockRunResult = []
   })
 
-  it('[P1] should return running status while pipeline active', async () => {
+  it('[P1] should return fetching status while sources being checked', async () => {
     mockRunResult = [{
       id: 'run-123',
-      startedAt: new Date('2026-03-09T10:00:00Z'),
+      startedAt: new Date(), // recent — not stale
       completedAt: null,
       sourcesAttempted: 3,
       sourcesSucceeded: 1,
@@ -52,10 +52,50 @@ describe('GET /api/discovery/status', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body.data.status).toBe('running')
+    expect(body.data.status).toBe('fetching')
     expect(body.data.sources_completed).toBe(1)
     expect(body.data.sources_total).toBe(3)
     expect(body.data.listings_new).toBe(30)
+  })
+
+  it('[P1] should return scoring status when all sources done but not completed', async () => {
+    mockRunResult = [{
+      id: 'run-123',
+      startedAt: new Date(), // recent — not stale
+      completedAt: null,
+      sourcesAttempted: 3,
+      sourcesSucceeded: 2,
+      sourcesFailed: 1,
+      listingsFetched: 80,
+      listingsNew: 50,
+      listingsDeduplicated: 5,
+      errors: null,
+    }]
+
+    const response = await GET(createRequest('run-123'))
+    const body = await response.json()
+
+    expect(body.data.status).toBe('scoring')
+  })
+
+  it('[P1] should treat stale runs as completed', async () => {
+    mockRunResult = [{
+      id: 'run-123',
+      startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10 min ago — stale
+      completedAt: null,
+      sourcesAttempted: 3,
+      sourcesSucceeded: 1,
+      sourcesFailed: 0,
+      listingsFetched: 50,
+      listingsNew: 30,
+      listingsDeduplicated: 5,
+      errors: null,
+    }]
+
+    const response = await GET(createRequest('run-123'))
+    const body = await response.json()
+
+    expect(body.data.status).toBe('completed')
   })
 
   it('[P1] should return completed status when done', async () => {

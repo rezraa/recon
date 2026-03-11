@@ -56,6 +56,41 @@ const COUNTRY_PATTERNS = new Map<string, string>([
   ['peru', 'PE'],
 ])
 
+// Region acronyms and multi-country labels → non-US markers
+const NON_US_REGIONS = new Set([
+  'emea', 'apac', 'latam', 'asia', 'europe', 'africa',
+  'asia pacific', 'middle east', 'european union', 'eu',
+])
+
+// Major non-US cities → country code
+const CITY_PATTERNS = new Map<string, string>([
+  ['london', 'GB'], ['manchester', 'GB'], ['edinburgh', 'GB'], ['bristol', 'GB'],
+  ['berlin', 'DE'], ['munich', 'DE'], ['hamburg', 'DE'], ['frankfurt', 'DE'],
+  ['paris', 'FR'], ['lyon', 'FR'],
+  ['amsterdam', 'NL'], ['rotterdam', 'NL'],
+  ['dublin', 'IE'],
+  ['toronto', 'CA'], ['vancouver', 'CA'], ['montreal', 'CA'], ['ottawa', 'CA'],
+  ['sydney', 'AU'], ['melbourne', 'AU'],
+  ['tokyo', 'JP'], ['osaka', 'JP'],
+  ['singapore', 'SG'],
+  ['mexico city', 'MX'], ['guadalajara', 'MX'], ['monterrey', 'MX'],
+  ['bangalore', 'IN'], ['bengaluru', 'IN'], ['mumbai', 'IN'], ['hyderabad', 'IN'],
+  ['delhi', 'IN'], ['new delhi', 'IN'], ['pune', 'IN'], ['chennai', 'IN'],
+  ['são paulo', 'BR'], ['sao paulo', 'BR'], ['rio de janeiro', 'BR'],
+  ['tel aviv', 'IL'], ['jerusalem', 'IL'],
+  ['warsaw', 'PL'], ['krakow', 'PL'], ['kraków', 'PL'],
+  ['prague', 'CZ'], ['bucharest', 'RO'], ['budapest', 'HU'],
+  ['lisbon', 'PT'], ['barcelona', 'ES'], ['madrid', 'ES'],
+  ['zurich', 'CH'], ['zürich', 'CH'], ['geneva', 'CH'],
+  ['stockholm', 'SE'], ['copenhagen', 'DK'], ['oslo', 'NO'], ['helsinki', 'FI'],
+  ['brussels', 'BE'],
+  ['hong kong', 'HK'], ['taipei', 'TW'], ['seoul', 'KR'],
+  ['dubai', 'AE'], ['abu dhabi', 'AE'],
+  ['cape town', 'ZA'], ['johannesburg', 'ZA'],
+  ['bogota', 'CO'], ['bogotá', 'CO'], ['buenos aires', 'AR'], ['santiago', 'CL'],
+  ['santo domingo', 'DO'],
+])
+
 /**
  * Extract a 2-letter ISO country code from a job location string.
  *
@@ -71,9 +106,9 @@ export function extractCountry(location: string | null | undefined): string {
 
   const trimmed = location.trim()
 
-  // Split on commas and dashes, work backward
+  // Split on commas, dashes, and semicolons — work backward
   const segments = trimmed
-    .split(/[,\-–—]+/)
+    .split(/[,;\-–—]+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
 
@@ -91,6 +126,13 @@ export function extractCountry(location: string | null | undefined): string {
       continue
     }
 
+    // Check non-US region acronyms (EMEA, APAC, Asia, etc.)
+    // Strip trailing codes like "APAC-C1" → "apac"
+    const regionClean = cleanLower.replace(/[\s-]\w{1,3}$/, '')
+    if (NON_US_REGIONS.has(cleanLower) || NON_US_REGIONS.has(regionClean)) {
+      return 'INTL'
+    }
+
     // Check US state abbreviation (2-letter uppercase)
     if (segUpper.length === 2 && US_STATES.has(segUpper)) {
       return 'US'
@@ -103,6 +145,16 @@ export function extractCountry(location: string | null | undefined): string {
     // Check full US state names
     const stateCode = US_STATE_NAMES.get(cleanLower)
     if (stateCode) return stateCode
+
+    // Check city patterns (exact match and as prefix, e.g. "Mexico City, DF")
+    const cityCode = CITY_PATTERNS.get(cleanLower)
+    if (cityCode) return cityCode
+  }
+
+  // Second pass: check multi-word city names across the full string
+  const fullLower = trimmed.toLowerCase()
+  for (const [city, code] of CITY_PATTERNS) {
+    if (city.includes(' ') && fullLower.includes(city)) return code
   }
 
   // If the string contains "remote" and we haven't found a country, default to US

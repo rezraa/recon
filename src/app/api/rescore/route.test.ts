@@ -35,10 +35,10 @@ describe('POST /api/rescore', () => {
     mockGetResume.mockResolvedValue({
       id: 'resume-1',
       fileName: 'test.pdf',
-      fileHash: 'abc',
       parsedData: { skills: ['TS'], experience: [], jobTitles: [] },
       skills: ['TS'],
       experience: [],
+      resumeExtraction: null,
       uploadedAt: new Date(),
       updatedAt: new Date(),
     } as ReturnType<typeof getResume> extends Promise<infer T> ? NonNullable<T> : never)
@@ -65,10 +65,10 @@ describe('POST /api/rescore', () => {
     mockGetResume.mockResolvedValue({
       id: 'resume-1',
       fileName: 'test.pdf',
-      fileHash: 'abc',
       parsedData: { skills: [], experience: [], jobTitles: [] },
       skills: [],
       experience: [],
+      resumeExtraction: null,
       uploadedAt: new Date(),
       updatedAt: new Date(),
     } as ReturnType<typeof getResume> extends Promise<infer T> ? NonNullable<T> : never)
