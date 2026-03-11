@@ -10,15 +10,15 @@ import { findAllSources } from '@/lib/db/queries/sources'
 const mockFindAllSources = vi.mocked(findAllSources)
 
 describe('GET /api/sources — edge cases', () => {
-  it('[P2] should return all 4 sources when DB has no source records at all', async () => {
+  it('[P2] should return all 6 sources when DB has no source records at all', async () => {
     // Given: DB is completely empty
     mockFindAllSources.mockResolvedValue([])
 
     const res = await GET()
     const json = await res.json()
 
-    // Then: all 4 sources still returned from registry
-    expect(json.data).toHaveLength(4)
+    // Then: all 6 sources still returned from registry
+    expect(json.data).toHaveLength(6)
 
     // Open sources should still be configured and active
     const himalayas = json.data.find((s: { name: string }) => s.name === 'himalayas')

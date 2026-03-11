@@ -1,0 +1,29 @@
+[
+  {
+    "id": "100001",
+    "slug": "senior-react-developer-acme-corp",
+    "epoch": "1709856000",
+    "date": "2024-03-08T00:00:00.000Z",
+    "company": "Acme Corp",
+    "position": "Senior React Developer",
+    "tags": ["react", "typescript", "nodejs"],
+    "description": "We are looking for a Senior React Developer to join our team. You will work on building modern web applications using React, TypeScript, and Node.js. 5+ years experience required.",
+    "location": "Remote",
+    "salary_min": 120000,
+    "salary_max": 160000,
+    "url": "https://remoteok.com/remote-jobs/100001-senior-react-developer-acme-corp",
+    "apply_url": "https://acme-corp.com/careers/apply/100001"
+  },
+  {
+    "id": "100002",
+    "slug": "sr-react-dev-beta-inc",
+    "epoch": "1709856000",
+    "date": "2024-03-08T00:00:00.000Z",
+    "company": "Beta Inc",
+    "position": "Sr. React Dev",
+    "tags": ["react", "javascript"],
+    "description": "Looking for an experienced React developer. Must have strong JavaScript fundamentals and experience with modern React patterns. Competitive salary.",
+    "location": "Worldwide",
+    "url": "https://remoteok.com/remote-jobs/100002-sr-react-dev-beta-inc"
+  }
+]

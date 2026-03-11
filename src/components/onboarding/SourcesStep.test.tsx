@@ -5,11 +5,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { SourcesStep } from './SourcesStep'
 
 describe('SourcesStep', () => {
-  it('[P1] should render all 4 sources from registry', () => {
+  it('[P1] should render all 6 sources from registry', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
     expect(screen.getByText('Himalayas')).toBeInTheDocument()
     expect(screen.getByText('The Muse')).toBeInTheDocument()
     expect(screen.getByText('Jobicy')).toBeInTheDocument()
+    expect(screen.getByText('Remote OK')).toBeInTheDocument()
+    expect(screen.getByText('RSS Feeds')).toBeInTheDocument()
     expect(screen.getByText('Serply')).toBeInTheDocument()
   })
 
@@ -30,13 +32,15 @@ describe('SourcesStep', () => {
     expect(screen.getByText('Remote jobs across industries')).toBeInTheDocument()
     expect(screen.getByText('Curated US job listings')).toBeInTheDocument()
     expect(screen.getByText('Remote jobs worldwide')).toBeInTheDocument()
+    expect(screen.getByText('LinkedIn, Indeed, and custom job feeds')).toBeInTheDocument()
+    expect(screen.getByText('Remote-first jobs worldwide')).toBeInTheDocument()
     expect(screen.getByText('Google for Jobs search')).toBeInTheDocument()
   })
 
   it('[P1] should render Enabled indicator for open sources', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
     const enabledIndicators = screen.getAllByText('Enabled')
-    expect(enabledIndicators).toHaveLength(3)
+    expect(enabledIndicators).toHaveLength(5)
   })
 
   it('[P1] should render letter avatars (not images)', () => {

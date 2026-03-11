@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Job Alerts</title>
+    <link>https://example.com/jobs</link>
+    <description>Job listings feed</description>
+    <item>
+      <title>Senior Software Engineer at Google</title>
+      <link>https://example.com/jobs/1</link>
+      <description><![CDATA[<p>Build scalable systems with React, TypeScript, and Go. $150,000 - $200,000. Location: San Francisco, CA. Requirements: 5+ years experience.</p>]]></description>
+      <pubDate>Mon, 10 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>job-1</guid>
+    </item>
+    <item>
+      <title>Data Scientist - Stripe</title>
+      <link>https://example.com/jobs/2</link>
+      <description>Analyze data and build ML models. Python, SQL, TensorFlow required. Remote position.</description>
+      <pubDate>Sun, 09 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>job-2</guid>
+    </item>
+    <item>
+      <title>Frontend Developer | Netflix</title>
+      <link>https://example.com/jobs/3</link>
+      <description>Build the next generation of streaming UI. React, TypeScript. $120k-$160k.</description>
+      <pubDate>Sat, 08 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>job-3</guid>
+    </item>
+  </channel>
+</rss>

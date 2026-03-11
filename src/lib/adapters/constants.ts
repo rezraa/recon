@@ -65,6 +65,44 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     },
   },
 
+  remoteok: {
+    name: 'remoteok',
+    displayName: 'Remote OK',
+    type: 'open',
+    description: 'Remote-first jobs worldwide',
+    regions: ['*'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://remoteok.com',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: 4,
+      requestsPerDay: 48,
+      requestsPerMonth: null,
+      cooldownMs: 60_000,
+    },
+  },
+
+  rss: {
+    name: 'rss',
+    displayName: 'RSS Feeds',
+    type: 'open',
+    description: 'LinkedIn, Indeed, and custom job feeds',
+    regions: ['*'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://en.wikipedia.org/wiki/RSS',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: null,
+      requestsPerDay: null,
+      requestsPerMonth: null,
+      cooldownMs: 60_000,
+    },
+  },
+
   serply: {
     name: 'serply',
     displayName: 'Serply',

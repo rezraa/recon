@@ -35,7 +35,7 @@ describe('GET /api/sources', () => {
     const json = await res.json()
 
     expect(res.status).toBe(200)
-    expect(json.data).toHaveLength(4)
+    expect(json.data).toHaveLength(6)
 
     // Open sources should be configured and active
     const himalayas = json.data.find((s: { name: string }) => s.name === 'himalayas')

@@ -18,6 +18,8 @@ import {
   getSourcesByRegion,
   registerAdapter,
 } from './registry'
+import { remoteokAdapter } from './remoteok'
+import { rssAdapter } from './rss'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import { rawJobListingSchema } from './types'
@@ -27,6 +29,8 @@ function reRegisterDefaults() {
   registerAdapter(themuseAdapter)
   registerAdapter(jobicyAdapter)
   registerAdapter(serplyAdapter)
+  registerAdapter(remoteokAdapter)
+  registerAdapter(rssAdapter)
 }
 
 // Zod schema to validate SOURCE_CONFIGS shape
@@ -51,13 +55,13 @@ const sourceConfigSchema = z.object({
 })
 
 describe('SOURCE_CONFIGS validation', () => {
-  it('should have exactly 4 sources', () => {
-    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(4)
+  it('should have exactly 6 sources', () => {
+    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(6)
   })
 
   it('should contain all expected sources', () => {
     expect(Object.keys(SOURCE_CONFIGS)).toEqual(
-      expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'serply']),
+      expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'serply', 'remoteok', 'rss']),
     )
   })
 
@@ -92,9 +96,9 @@ describe('SOURCE_CONFIGS validation', () => {
 })
 
 describe('getAllSources', () => {
-  it('should return all 4 sources', () => {
+  it('should return all 6 sources', () => {
     const sources = getAllSources()
-    expect(sources).toHaveLength(4)
+    expect(sources).toHaveLength(6)
   })
 
   it('should return SourceConfig objects', () => {
@@ -131,15 +135,15 @@ describe('getSourceByName', () => {
 describe('getOpenSources', () => {
   it('should return only open sources', () => {
     const sources = getOpenSources()
-    expect(sources).toHaveLength(3)
+    expect(sources).toHaveLength(5)
     for (const source of sources) {
       expect(source.type).toBe('open')
     }
   })
 
-  it('should include Himalayas, The Muse, and Jobicy', () => {
+  it('should include Himalayas, The Muse, Jobicy, RemoteOK, and RSS', () => {
     const names = getOpenSources().map((s) => s.name)
-    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy']))
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok', 'rss']))
   })
 })
 
@@ -160,7 +164,7 @@ describe('getSourcesByRegion', () => {
     expect(names).toContain('themuse')
     expect(names).toContain('himalayas')
     expect(names).toContain('serply')
-    expect(sources.length).toBe(4) // all sources match US (3 global + 1 US-specific)
+    expect(sources.length).toBe(6) // all sources match US (5 global + 1 US-specific)
   })
 
   it('should return only global sources for non-US region', () => {
@@ -168,12 +172,12 @@ describe('getSourcesByRegion', () => {
     const names = sources.map((s) => s.name)
     expect(names).not.toContain('themuse') // themuse is US-only
     expect(names).toContain('himalayas')
-    expect(sources.length).toBe(3) // 3 global sources
+    expect(sources.length).toBe(5) // 5 global sources
   })
 
   it('should return global sources for unknown region', () => {
     const sources = getSourcesByRegion('ZZ')
-    expect(sources.length).toBe(3)
+    expect(sources.length).toBe(5)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }
@@ -183,9 +187,9 @@ describe('getSourcesByRegion', () => {
 // ─── Adapter-Level Registry Tests ─────────────────────────────────────────
 
 describe('adapter registry (pre-registered)', () => {
-  it('should have all 4 adapters registered by default', () => {
+  it('should have all 6 adapters registered by default', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(4)
+    expect(adapters).toHaveLength(6)
   })
 
   it('should have adapter names matching source config names', () => {
@@ -194,7 +198,7 @@ describe('adapter registry (pre-registered)', () => {
     expect(adapterNames).toEqual(configNames)
   })
 
-  it.each(['himalayas', 'themuse', 'jobicy', 'serply'])(
+  it.each(['himalayas', 'themuse', 'jobicy', 'serply', 'remoteok', 'rss'])(
     'should retrieve %s adapter by name',
     (name) => {
       const adapter = getAdapter(name)
@@ -212,12 +216,16 @@ describe('adapter registry (pre-registered)', () => {
     expect(getAdapter('themuse')!.displayName).toBe('The Muse')
     expect(getAdapter('jobicy')!.displayName).toBe('Jobicy')
     expect(getAdapter('serply')!.displayName).toBe('Serply')
+    expect(getAdapter('rss')!.displayName).toBe('RSS Feeds')
+    expect(getAdapter('remoteok')!.displayName).toBe('Remote OK')
   })
 
   it('should have correct type for each adapter', () => {
     expect(getAdapter('himalayas')!.type).toBe('open')
     expect(getAdapter('themuse')!.type).toBe('open')
     expect(getAdapter('jobicy')!.type).toBe('open')
+    expect(getAdapter('rss')!.type).toBe('open')
+    expect(getAdapter('remoteok')!.type).toBe('open')
     expect(getAdapter('serply')!.type).toBe('key_required')
   })
 
@@ -309,9 +317,11 @@ describe('getEnabledAdapters', () => {
       { name: 'himalayas', isEnabled: true },
       { name: 'themuse', isEnabled: true },
       { name: 'jobicy', isEnabled: true },
+      { name: 'rss', isEnabled: true },
+      { name: 'remoteok', isEnabled: true },
       { name: 'serply', isEnabled: true },
     ]
-    expect(getEnabledAdapters(sources)).toHaveLength(4)
+    expect(getEnabledAdapters(sources)).toHaveLength(6)
   })
 })
 
@@ -345,12 +355,12 @@ describe('getSourcesByRegion edge cases', () => {
     const sources = getSourcesByRegion('us')
     // Only global (*) sources match — 'US' !== 'us'
     expect(sources.every((s) => s.regions.includes('*'))).toBe(true)
-    expect(sources.length).toBe(3) // 3 global sources, themuse excluded
+    expect(sources.length).toBe(5) // 5 global sources, themuse excluded
   })
 
   it('should return only global sources for empty string region', () => {
     const sources = getSourcesByRegion('')
-    expect(sources.length).toBe(3)
+    expect(sources.length).toBe(5)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }

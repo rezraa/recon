@@ -2,6 +2,7 @@ import { delay,http, HttpResponse } from 'msw'
 
 import himalayasResponse from '@/lib/adapters/__fixtures__/himalayas-response.json'
 import jobicyResponse from '@/lib/adapters/__fixtures__/jobicy-response.json'
+import remoteokResponse from '@/lib/adapters/__fixtures__/remoteok-response.json'
 import serplyResponse from '@/lib/adapters/__fixtures__/serply-response.json'
 import themuseResponse from '@/lib/adapters/__fixtures__/themuse-response.json'
 
@@ -18,6 +19,10 @@ export const sourceHandlers = [
 
   http.get('https://jobicy.com/api/v2/remote-jobs', () => {
     return HttpResponse.json(jobicyResponse)
+  }),
+
+  http.get('https://remoteok.com/api', () => {
+    return HttpResponse.json(remoteokResponse)
   }),
 
   http.get('https://api.serply.io/v1/job/search/*', () => {
@@ -109,6 +114,25 @@ export const sourceErrorHandlers = {
     }),
     missingJobsKey: http.get('https://jobicy.com/api/v2/remote-jobs', () => {
       return HttpResponse.json({})
+    }),
+  },
+
+  remoteok: {
+    http401: http.get('https://remoteok.com/api', () => {
+      return new HttpResponse(null, { status: 401, statusText: 'Unauthorized' })
+    }),
+    http429: http.get('https://remoteok.com/api', () => {
+      return new HttpResponse(null, { status: 429, statusText: 'Too Many Requests' })
+    }),
+    http500: http.get('https://remoteok.com/api', () => {
+      return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' })
+    }),
+    timeout: http.get('https://remoteok.com/api', async () => {
+      await delay('infinite')
+      return HttpResponse.json({})
+    }),
+    emptyJobs: http.get('https://remoteok.com/api', () => {
+      return HttpResponse.json([{ legal: 'RemoteOK API Terms' }])
     }),
   },
 

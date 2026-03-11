@@ -1,6 +1,8 @@
 import { SOURCE_CONFIGS } from './constants'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
+import { remoteokAdapter } from './remoteok'
+import { rssAdapter } from './rss'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import type { SourceAdapter, SourceConfig } from './types'
@@ -69,3 +71,5 @@ registerAdapter(himalayasAdapter)
 registerAdapter(themuseAdapter)
 registerAdapter(jobicyAdapter)
 registerAdapter(serplyAdapter)
+registerAdapter(remoteokAdapter)
+registerAdapter(rssAdapter)

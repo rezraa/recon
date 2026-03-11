@@ -5,11 +5,13 @@ import { server } from '@/test-utils/msw/server'
 
 import himalayasFixture from './__fixtures__/himalayas-response.json'
 import jobicyFixture from './__fixtures__/jobicy-response.json'
+import remoteokFixture from './__fixtures__/remoteok-response.json'
 import serplyFixture from './__fixtures__/serply-response.json'
 import themuseFixture from './__fixtures__/themuse-response.json'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
 import { getAllAdapters } from './registry'
+import { remoteokAdapter } from './remoteok'
 import { serplyAdapter } from './serply'
 import { themuseAdapter } from './themuse'
 import type { RawJobListing } from './types'
@@ -27,6 +29,9 @@ function setupAllHandlers() {
     }),
     http.get('https://jobicy.com/api/v2/remote-jobs', () => {
       return HttpResponse.json(jobicyFixture)
+    }),
+    http.get('https://remoteok.com/api', () => {
+      return HttpResponse.json(remoteokFixture)
     }),
     http.get('https://api.serply.io/v1/job/search/*', () => {
       return HttpResponse.json(serplyFixture, {
@@ -53,13 +58,14 @@ const serplyConfig = {
 
 async function fetchAllAdapterResults(): Promise<Record<string, RawJobListing[]>> {
   setupAllHandlers()
-  const [himalayas, themuse, jobicy, serply] = await Promise.all([
+  const [himalayas, themuse, jobicy, remoteok, serply] = await Promise.all([
     himalayasAdapter.fetchListings(defaultConfig),
     themuseAdapter.fetchListings(defaultConfig),
     jobicyAdapter.fetchListings(defaultConfig),
+    remoteokAdapter.fetchListings(defaultConfig),
     serplyAdapter.fetchListings(serplyConfig),
   ])
-  return { himalayas, themuse, jobicy, serply }
+  return { himalayas, themuse, jobicy, remoteok, serply }
 }
 
 // ─── Legal Compliance ──────────────────────────────────────────────────────
@@ -388,11 +394,11 @@ describe('Optional getRateLimitStatus', () => {
 // ─── Registry Validation ───────────────────────────────────────────────────
 
 describe('Registry: all adapters registered', () => {
-  it('should have all 4 adapters registered', () => {
+  it('should have all 6 adapters registered', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(4)
+    expect(adapters).toHaveLength(6)
     const names = adapters.map((a) => a.name).sort()
-    expect(names).toEqual(['himalayas', 'jobicy', 'serply', 'themuse'])
+    expect(names).toEqual(['himalayas', 'jobicy', 'remoteok', 'rss', 'serply', 'themuse'])
   })
 
   it('should have real implementations (not stubs)', async () => {
