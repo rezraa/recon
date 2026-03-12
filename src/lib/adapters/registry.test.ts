@@ -3,7 +3,9 @@ import { z } from 'zod'
 
 import { createMockAdapter } from '@/test-utils/factories/adapter.factory'
 
+import { ashbyAdapter } from './ashby'
 import { SOURCE_CONFIGS } from './constants'
+import { greenhouseAdapter } from './greenhouse'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
 import {
@@ -21,19 +23,25 @@ import {
   getSourcesByRegion,
   registerAdapter,
 } from './registry'
+import { leverAdapter } from './lever'
 import { remoteokAdapter } from './remoteok'
 import { rssAdapter } from './rss'
 import { serplyAdapter } from './serply'
+import { smartrecruitersAdapter } from './smartrecruiters'
 import { themuseAdapter } from './themuse'
 import { rawJobListingSchema } from './types'
 
 function reRegisterDefaults() {
+  registerAdapter(ashbyAdapter)
+  registerAdapter(greenhouseAdapter)
   registerAdapter(himalayasAdapter)
   registerAdapter(themuseAdapter)
   registerAdapter(jobicyAdapter)
+  registerAdapter(leverAdapter)
   registerAdapter(serplyAdapter)
   registerAdapter(remoteokAdapter)
   registerAdapter(rssAdapter)
+  registerAdapter(smartrecruitersAdapter)
 }
 
 // Zod schema to validate SOURCE_CONFIGS shape
@@ -59,13 +67,13 @@ const sourceConfigSchema = z.object({
 })
 
 describe('SOURCE_CONFIGS validation', () => {
-  it('should have exactly 6 sources', () => {
-    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(6)
+  it('should have exactly 10 sources', () => {
+    expect(Object.keys(SOURCE_CONFIGS)).toHaveLength(10)
   })
 
   it('should contain all expected sources', () => {
     expect(Object.keys(SOURCE_CONFIGS)).toEqual(
-      expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'serply', 'remoteok', 'rss']),
+      expect.arrayContaining(['ashby', 'greenhouse', 'himalayas', 'themuse', 'jobicy', 'lever', 'serply', 'smartrecruiters', 'remoteok', 'rss']),
     )
   })
 
@@ -100,9 +108,9 @@ describe('SOURCE_CONFIGS validation', () => {
 })
 
 describe('getAllSources', () => {
-  it('should return all 6 sources', () => {
+  it('should return all 10 sources', () => {
     const sources = getAllSources()
-    expect(sources).toHaveLength(6)
+    expect(sources).toHaveLength(10)
   })
 
   it('should return SourceConfig objects', () => {
@@ -139,15 +147,15 @@ describe('getSourceByName', () => {
 describe('getOpenSources', () => {
   it('should return only open sources', () => {
     const sources = getOpenSources()
-    expect(sources).toHaveLength(5)
+    expect(sources).toHaveLength(9)
     for (const source of sources) {
       expect(source.type).toBe('open')
     }
   })
 
-  it('should include Himalayas, The Muse, Jobicy, RemoteOK, and RSS', () => {
+  it('should include all open sources', () => {
     const names = getOpenSources().map((s) => s.name)
-    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok', 'rss']))
+    expect(names).toEqual(expect.arrayContaining(['ashby', 'greenhouse', 'himalayas', 'themuse', 'jobicy', 'lever', 'remoteok', 'rss', 'smartrecruiters']))
   })
 })
 
@@ -163,20 +171,24 @@ describe('getKeyRequiredSources', () => {
 describe('getFeedSources', () => {
   it('should return only feed-mode sources', () => {
     const sources = getFeedSources()
-    expect(sources).toHaveLength(4)
+    expect(sources).toHaveLength(5)
     for (const source of sources) {
       expect(source.mode).toBe('feed')
     }
   })
 
-  it('should include himalayas, themuse, jobicy, remoteok', () => {
+  it('should include all feed sources', () => {
     const names = getFeedSources().map((s) => s.name)
-    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok']))
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok', 'rss']))
   })
 
   it('should not include search-mode sources', () => {
     const names = getFeedSources().map((s) => s.name)
-    expect(names).not.toContain('rss')
+    // ATS adapters are search-mode until going live
+    expect(names).not.toContain('ashby')
+    expect(names).not.toContain('greenhouse')
+    expect(names).not.toContain('lever')
+    expect(names).not.toContain('smartrecruiters')
     expect(names).not.toContain('serply')
   })
 })
@@ -184,41 +196,44 @@ describe('getFeedSources', () => {
 describe('getSearchSources', () => {
   it('should return only search-mode sources', () => {
     const sources = getSearchSources()
-    expect(sources).toHaveLength(2)
+    expect(sources).toHaveLength(5)
     for (const source of sources) {
       expect(source.mode).toBe('search')
     }
   })
 
-  it('should include rss and serply', () => {
+  it('should include search-mode sources', () => {
     const names = getSearchSources().map((s) => s.name)
-    expect(names).toEqual(expect.arrayContaining(['rss', 'serply']))
+    expect(names).toEqual(expect.arrayContaining(['serply', 'ashby', 'greenhouse', 'lever', 'smartrecruiters']))
   })
 })
 
 describe('getFeedAdapters', () => {
   it('should return only feed-mode adapters', () => {
     const adapters = getFeedAdapters()
-    expect(adapters).toHaveLength(4)
+    expect(adapters).toHaveLength(5)
     const names = adapters.map((a) => a.name)
-    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok']))
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok', 'rss']))
   })
 
   it('should not include search-mode adapters', () => {
     const names = getFeedAdapters().map((a) => a.name)
-    expect(names).not.toContain('rss')
+    expect(names).not.toContain('ashby')
+    expect(names).not.toContain('greenhouse')
+    expect(names).not.toContain('lever')
+    expect(names).not.toContain('smartrecruiters')
     expect(names).not.toContain('serply')
   })
 })
 
 describe('getAllSources returns all sources regardless of mode', () => {
-  it('should return all 6 sources including both feed and search modes', () => {
+  it('should return all 10 sources including both feed and search modes', () => {
     const sources = getAllSources()
-    expect(sources).toHaveLength(6)
+    expect(sources).toHaveLength(10)
     const feedCount = sources.filter((s) => s.mode === 'feed').length
     const searchCount = sources.filter((s) => s.mode === 'search').length
-    expect(feedCount).toBe(4)
-    expect(searchCount).toBe(2)
+    expect(feedCount).toBe(5)
+    expect(searchCount).toBe(5)
   })
 })
 
@@ -230,7 +245,7 @@ describe('getSourcesByRegion', () => {
     expect(names).toContain('themuse')
     expect(names).toContain('himalayas')
     expect(names).toContain('serply')
-    expect(sources.length).toBe(6) // all sources match US (5 global + 1 US-specific)
+    expect(sources.length).toBe(10) // all sources match US (6 global + 4 US-specific)
   })
 
   it('should return only global sources for non-US region', () => {
@@ -238,12 +253,12 @@ describe('getSourcesByRegion', () => {
     const names = sources.map((s) => s.name)
     expect(names).not.toContain('themuse') // themuse is US-only
     expect(names).toContain('himalayas')
-    expect(sources.length).toBe(5) // 5 global sources
+    expect(sources.length).toBe(6) // 6 global sources
   })
 
   it('should return global sources for unknown region', () => {
     const sources = getSourcesByRegion('ZZ')
-    expect(sources.length).toBe(5)
+    expect(sources.length).toBe(6)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }
@@ -253,9 +268,9 @@ describe('getSourcesByRegion', () => {
 // ─── Adapter-Level Registry Tests ─────────────────────────────────────────
 
 describe('adapter registry (pre-registered)', () => {
-  it('should have all 6 adapters registered by default', () => {
+  it('should have all 10 adapters registered by default', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(6)
+    expect(adapters).toHaveLength(10)
   })
 
   it('should have adapter names matching source config names', () => {
@@ -264,7 +279,7 @@ describe('adapter registry (pre-registered)', () => {
     expect(adapterNames).toEqual(configNames)
   })
 
-  it.each(['himalayas', 'themuse', 'jobicy', 'serply', 'remoteok', 'rss'])(
+  it.each(['ashby', 'greenhouse', 'himalayas', 'themuse', 'jobicy', 'lever', 'serply', 'smartrecruiters', 'remoteok', 'rss'])(
     'should retrieve %s adapter by name',
     (name) => {
       const adapter = getAdapter(name)
@@ -278,20 +293,28 @@ describe('adapter registry (pre-registered)', () => {
   })
 
   it('should have correct displayName for each adapter', () => {
+    expect(getAdapter('ashby')!.displayName).toBe('Ashby')
+    expect(getAdapter('greenhouse')!.displayName).toBe('Greenhouse')
     expect(getAdapter('himalayas')!.displayName).toBe('Himalayas')
     expect(getAdapter('themuse')!.displayName).toBe('The Muse')
     expect(getAdapter('jobicy')!.displayName).toBe('Jobicy')
+    expect(getAdapter('lever')!.displayName).toBe('Lever')
     expect(getAdapter('serply')!.displayName).toBe('Serply')
     expect(getAdapter('rss')!.displayName).toBe('RSS Feeds')
     expect(getAdapter('remoteok')!.displayName).toBe('Remote OK')
+    expect(getAdapter('smartrecruiters')!.displayName).toBe('SmartRecruiters')
   })
 
   it('should have correct type for each adapter', () => {
+    expect(getAdapter('ashby')!.type).toBe('open')
+    expect(getAdapter('greenhouse')!.type).toBe('open')
     expect(getAdapter('himalayas')!.type).toBe('open')
     expect(getAdapter('themuse')!.type).toBe('open')
     expect(getAdapter('jobicy')!.type).toBe('open')
+    expect(getAdapter('lever')!.type).toBe('open')
     expect(getAdapter('rss')!.type).toBe('open')
     expect(getAdapter('remoteok')!.type).toBe('open')
+    expect(getAdapter('smartrecruiters')!.type).toBe('open')
     expect(getAdapter('serply')!.type).toBe('key_required')
   })
 
@@ -380,14 +403,18 @@ describe('getEnabledAdapters', () => {
 
   it('should return all adapters when all sources are enabled', () => {
     const sources = [
+      { name: 'ashby', isEnabled: true },
+      { name: 'greenhouse', isEnabled: true },
       { name: 'himalayas', isEnabled: true },
       { name: 'themuse', isEnabled: true },
       { name: 'jobicy', isEnabled: true },
+      { name: 'lever', isEnabled: true },
       { name: 'rss', isEnabled: true },
       { name: 'remoteok', isEnabled: true },
       { name: 'serply', isEnabled: true },
+      { name: 'smartrecruiters', isEnabled: true },
     ]
-    expect(getEnabledAdapters(sources)).toHaveLength(6)
+    expect(getEnabledAdapters(sources)).toHaveLength(10)
   })
 })
 
@@ -421,12 +448,12 @@ describe('getSourcesByRegion edge cases', () => {
     const sources = getSourcesByRegion('us')
     // Only global (*) sources match — 'US' !== 'us'
     expect(sources.every((s) => s.regions.includes('*'))).toBe(true)
-    expect(sources.length).toBe(5) // 5 global sources, themuse excluded
+    expect(sources.length).toBe(6) // 6 global sources, themuse excluded
   })
 
   it('should return only global sources for empty string region', () => {
     const sources = getSourcesByRegion('')
-    expect(sources.length).toBe(5)
+    expect(sources.length).toBe(6)
     for (const source of sources) {
       expect(source.regions).toContain('*')
     }

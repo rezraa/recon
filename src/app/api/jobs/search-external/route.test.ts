@@ -7,9 +7,15 @@ vi.mock('@/lib/ai/embeddings', () => ({
 }))
 
 const mockInsertReturning = vi.fn().mockResolvedValue([{ id: 'new-1' }])
+const mockSelectWhere = vi.fn().mockResolvedValue([]) // cache check: no existing jobs
 
 vi.mock('@/lib/db/client', () => ({
   getDb: vi.fn(() => ({
+    select: () => ({
+      from: () => ({
+        where: mockSelectWhere,
+      }),
+    }),
     insert: () => ({
       values: () => ({
         onConflictDoNothing: () => ({
@@ -20,20 +26,17 @@ vi.mock('@/lib/db/client', () => ({
   })),
 }))
 
+vi.mock('@/lib/db/queries/resume', () => ({
+  getResume: vi.fn().mockResolvedValue(null),
+}))
+
 vi.mock('@/lib/db/queries/sources', () => ({
   getSourceApiKey: vi.fn().mockResolvedValue(null),
 }))
 
-const mockRssListings = vi.fn().mockResolvedValue([])
-vi.mock('@/lib/adapters/rss', () => ({
-  rssAdapter: {
-    name: 'rss',
-    displayName: 'RSS Feeds',
-    type: 'open',
-    fetchListings: (...args: unknown[]) => mockRssListings(...args),
-  },
-  setFeedUrls: vi.fn(),
-  getFeedUrls: vi.fn().mockReturnValue([]),
+const mockSearchSearXNG = vi.fn().mockResolvedValue([])
+vi.mock('@/lib/adapters/searxng', () => ({
+  searchSearXNG: (...args: unknown[]) => mockSearchSearXNG(...args),
 }))
 
 const mockSerplyListings = vi.fn().mockResolvedValue([])
@@ -48,6 +51,21 @@ vi.mock('@/lib/adapters/serply', () => ({
 
 vi.mock('@/lib/pipeline/normalizer', () => ({
   normalize: vi.fn().mockResolvedValue({ normalized: [], skippedCount: 0 }),
+}))
+
+vi.mock('@/lib/pipeline/scoring', () => ({
+  extractResumeProfile: vi.fn().mockResolvedValue({
+    title: 'SWE', domain: 'Tech', seniorityLevel: 'senior',
+    yearsExperience: 5, hardSkills: ['React'], softSkills: [], certifications: [],
+  }),
+  embedProfile: vi.fn().mockResolvedValue({
+    hardSkills: new Float32Array(384),
+    title: new Float32Array(384),
+  }),
+  scorePartialJob: vi.fn().mockResolvedValue({
+    matchScore: 35,
+    matchBreakdown: { skills: { score: 0 }, experience: { score: 50 }, salary: { score: 0 }, domainMultiplier: 70 },
+  }),
 }))
 
 // ─── Import after mocks ─────────────────────────────────────────────────────
@@ -65,7 +83,6 @@ function createRequest(body: unknown): Request {
 describe('POST /api/jobs/search-external', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    delete process.env.RSSHUB_URL
   })
 
   it('should return 400 for empty query', async () => {
@@ -73,7 +90,8 @@ describe('POST /api/jobs/search-external', () => {
     expect(response.status).toBe(400)
   })
 
-  it('should return found=0 when no sources configured', async () => {
+  it('should return found=0 when SearXNG returns no listings', async () => {
+    mockSearchSearXNG.mockResolvedValueOnce([])
     const response = await POST(createRequest({ query: 'SDET' }))
     const body = await response.json()
 
@@ -81,12 +99,11 @@ describe('POST /api/jobs/search-external', () => {
     expect(body.data.found).toBe(0)
   })
 
-  it('should call LinkedIn adapter when RSSHUB_URL configured', async () => {
-    process.env.RSSHUB_URL = 'http://localhost:1200'
-    mockRssListings.mockResolvedValueOnce([
+  it('should call SearXNG adapter with query', async () => {
+    mockSearchSearXNG.mockResolvedValueOnce([
       {
-        source_name: 'rss',
-        external_id: 'li-1',
+        source_name: 'linkedin',
+        external_id: 'searxng-li-123',
         title: 'SDET',
         company: 'Netflix',
         source_url: 'https://linkedin.com/jobs/view/123',
@@ -98,8 +115,8 @@ describe('POST /api/jobs/search-external', () => {
     const { normalize } = await import('@/lib/pipeline/normalizer')
     vi.mocked(normalize).mockResolvedValueOnce({
       normalized: [{
-        externalId: 'li-1',
-        sourceName: 'rss',
+        externalId: 'searxng-li-123',
+        sourceName: 'linkedin',
         title: 'SDET',
         company: 'Netflix',
         descriptionText: 'Test role',
@@ -117,7 +134,10 @@ describe('POST /api/jobs/search-external', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(mockRssListings).toHaveBeenCalled()
+    expect(mockSearchSearXNG).toHaveBeenCalledWith('SDET remote', {
+      maxPages: 3,
+      timeRange: 'week',
+    })
     expect(body.data.found).toBe(1)
   })
 
@@ -163,25 +183,17 @@ describe('POST /api/jobs/search-external', () => {
     expect(body.data.found).toBe(1)
   })
 
-  it('should skip LinkedIn when RSSHUB_URL not configured', async () => {
-    const response = await POST(createRequest({ query: 'SDET' }))
-    await response.json()
-
-    expect(mockRssListings).not.toHaveBeenCalled()
-  })
-
   it('should return found count of inserted jobs', async () => {
-    process.env.RSSHUB_URL = 'http://localhost:1200'
-    mockRssListings.mockResolvedValueOnce([
-      { source_name: 'rss', external_id: 'li-1', title: 'Dev', company: 'Co', source_url: 'https://example.com', description_text: 'Test', raw_data: {} },
-      { source_name: 'rss', external_id: 'li-2', title: 'QA', company: 'Co2', source_url: 'https://example.com/2', description_text: 'Test2', raw_data: {} },
+    mockSearchSearXNG.mockResolvedValueOnce([
+      { source_name: 'linkedin', external_id: 'searxng-li-1', title: 'Dev', company: 'Co', source_url: 'https://linkedin.com/jobs/view/1', description_text: 'Test', raw_data: {} },
+      { source_name: 'linkedin', external_id: 'searxng-li-2', title: 'QA', company: 'Co2', source_url: 'https://linkedin.com/jobs/view/2', description_text: 'Test2', raw_data: {} },
     ])
 
     const { normalize } = await import('@/lib/pipeline/normalizer')
     vi.mocked(normalize).mockResolvedValueOnce({
       normalized: [
-        { externalId: 'li-1', sourceName: 'rss', title: 'Dev', company: 'Co', descriptionText: 'Test', searchText: 'Dev Co Test', sources: [], discoveredAt: new Date(), pipelineStage: 'discovered', country: 'US', fingerprint: 'a' },
-        { externalId: 'li-2', sourceName: 'rss', title: 'QA', company: 'Co2', descriptionText: 'Test2', searchText: 'QA Co2 Test2', sources: [], discoveredAt: new Date(), pipelineStage: 'discovered', country: 'US', fingerprint: 'b' },
+        { externalId: 'searxng-li-1', sourceName: 'linkedin', title: 'Dev', company: 'Co', descriptionText: 'Test', searchText: 'Dev Co Test', sources: [], discoveredAt: new Date(), pipelineStage: 'discovered', country: 'US', fingerprint: 'a' },
+        { externalId: 'searxng-li-2', sourceName: 'linkedin', title: 'QA', company: 'Co2', descriptionText: 'Test2', searchText: 'QA Co2 Test2', sources: [], discoveredAt: new Date(), pipelineStage: 'discovered', country: 'US', fingerprint: 'b' },
       ] as never,
       skippedCount: 0,
     })
@@ -190,5 +202,14 @@ describe('POST /api/jobs/search-external', () => {
     const body = await response.json()
 
     expect(body.data.found).toBe(2)
+  })
+
+  it('should handle SearXNG failure gracefully', async () => {
+    mockSearchSearXNG.mockRejectedValueOnce(new Error('SearXNG down'))
+    const response = await POST(createRequest({ query: 'SDET' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.found).toBe(0)
   })
 })

@@ -7,7 +7,7 @@ vi.mock('pdf-parse', () => ({
 
 import pdfParse from 'pdf-parse'
 
-import { parseResume } from './resumeParser'
+import { extractLocation, parseResume } from './resumeParser'
 
 const mockPdfParseFn = vi.mocked(pdfParse)
 
@@ -564,6 +564,73 @@ JavaScript, Python, Go
     it('[P1] should propagate pdf-parse errors', async () => {
       mockPdfParseFn.mockRejectedValue(new Error('Invalid PDF') as never)
       await expect(parseResume(Buffer.from('fake'))).rejects.toThrow('Invalid PDF')
+    })
+  })
+
+  describe('extractLocation', () => {
+    it('should extract "City, ST" format', () => {
+      expect(extractLocation(['Fair Lawn, NJ'])).toBe('Fair Lawn, NJ')
+    })
+
+    it('should extract "City, ST ZIP" and strip ZIP', () => {
+      expect(extractLocation(['Fair Lawn, NJ 07410'])).toBe('Fair Lawn, NJ')
+    })
+
+    it('should extract "City, Full State"', () => {
+      expect(extractLocation(['San Francisco, California'])).toBe('San Francisco, California')
+    })
+
+    it('should extract from address line (strip street)', () => {
+      expect(extractLocation(['123 Main St, Fair Lawn, NJ 07410'])).toBe('Fair Lawn, NJ')
+    })
+
+    it('should extract international: "City, Country"', () => {
+      expect(extractLocation(['London, UK'])).toBe('London, UK')
+    })
+
+    it('should extract international: "City, Full Country"', () => {
+      expect(extractLocation(['Berlin, Germany'])).toBe('Berlin, Germany')
+    })
+
+    it('should extract multi-segment: "City, Province, Country"', () => {
+      expect(extractLocation(['Toronto, ON, Canada'])).toBe('Toronto, ON, Canada')
+    })
+
+    it('should return undefined for no location', () => {
+      expect(extractLocation(['John Doe', 'john@example.com'])).toBeUndefined()
+    })
+
+    it('should skip URLs and emails', () => {
+      expect(extractLocation(['https://linkedin.com/in/johndoe', 'john@doe.com'])).toBeUndefined()
+    })
+
+    it('should skip phone numbers', () => {
+      expect(extractLocation(['+1 (201) 555-1234'])).toBeUndefined()
+    })
+
+    it('should handle mixed preamble and find location', () => {
+      expect(extractLocation([
+        'John Doe',
+        'john@example.com | +1 201-555-1234',
+        'Fair Lawn, NJ 07410',
+        'linkedin.com/in/johndoe',
+      ])).toBe('Fair Lawn, NJ')
+    })
+
+    it('should extract location from parseResume preamble', async () => {
+      mockPdfText(`John Doe
+Fair Lawn, NJ 07410
+john@example.com
+
+SKILLS
+React, TypeScript
+
+EXPERIENCE
+Staff SDET
+FLOW  •  Remote  2023 - Present`)
+
+      const result = await parseResume(Buffer.from('fake'))
+      expect(result.location).toBe('Fair Lawn, NJ')
     })
   })
 })

@@ -64,6 +64,7 @@ services:
     environment:
       DATABASE_URL: postgresql://recon:recon@postgres:5432/recon
       REDIS_URL: redis://redis:6379
+      RSSHUB_URL: http://rsshub:1200
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,6 +83,7 @@ services:
     environment:
       DATABASE_URL: postgresql://recon:recon@postgres:5432/recon
       REDIS_URL: redis://redis:6379
+      RSSHUB_URL: http://rsshub:1200
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,8 +97,8 @@ services:
   rsshub:
     image: diygod/rsshub:latest
     restart: unless-stopped
-    profiles:
-      - linkedin
+    ports:
+      - "1200:1200"
     environment:
       NODE_ENV: production
     healthcheck:

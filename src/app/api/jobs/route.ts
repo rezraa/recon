@@ -70,10 +70,8 @@ export async function GET(request: NextRequest) {
       conditions.push(inArray(jobsTable.country, countries))
     }
 
-    // When no search query, exclude partial jobs from default feed
-    if (!query) {
-      conditions.push(eq(jobsTable.partial, false))
-    }
+    // Show all jobs in the feed — partial jobs from wild search should appear
+    // alongside fully-discovered jobs. They get enriched on click.
 
     // Apply text search filter
     if (query) {

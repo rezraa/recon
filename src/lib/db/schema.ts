@@ -75,6 +75,7 @@ export const jobsTable = pgTable(
     partial: boolean('partial').default(false),
     enrichmentAttemptedAt: timestamp('enrichment_attempted_at', { withTimezone: true }),
     isDismissed: boolean('is_dismissed').default(false),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     searchVector: tsvector('search_vector'),

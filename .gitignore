@@ -47,6 +47,9 @@ yarn-error.log*
 # exploration scripts (not production code)
 /scripts/
 
+# docs (internal notes, strategy docs, research)
+/docs/
+
 # vercel
 .vercel
 

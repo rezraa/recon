@@ -18,8 +18,8 @@ let zeroShotPromise: Promise<ZeroShotClassificationPipeline> | null = null
 export function getEmbeddingModel(): Promise<FeatureExtractionPipeline> {
   if (!embeddingPromise) {
     embeddingPromise = import('@huggingface/transformers').then((mod) => {
-      const create = mod.pipeline as (task: string, model: string) => Promise<FeatureExtractionPipeline>
-      return create('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+      const create = mod.pipeline as (task: string, model: string, opts?: Record<string, unknown>) => Promise<FeatureExtractionPipeline>
+      return create('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { dtype: 'fp32' })
     })
   }
   return embeddingPromise

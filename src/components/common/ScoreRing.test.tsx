@@ -41,11 +41,11 @@ describe('ScoreRing', () => {
     expect(svg.getAttribute('height')).toBe('48')
   })
 
-  it('should default size to 36', () => {
+  it('should default size to 42', () => {
     const { container } = render(<ScoreRing score={50} />)
     const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('36')
-    expect(svg.getAttribute('height')).toBe('36')
+    expect(svg.getAttribute('width')).toBe('42')
+    expect(svg.getAttribute('height')).toBe('42')
   })
 
   it('should render red color for score < 30', () => {

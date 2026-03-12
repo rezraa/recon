@@ -70,7 +70,7 @@ export function BenefitTag({ label, colorClass, title, className }: BenefitTagPr
   return (
     <span
       className={cn(
-        'inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded',
+        'inline-flex items-center text-xs font-medium px-1.5 py-0.5 rounded',
         colorClass ?? 'list-tag',
         className,
       )}
@@ -87,7 +87,7 @@ interface BenefitTagListProps {
   className?: string
 }
 
-export function BenefitTagList({ benefits, maxVisible = 4, className }: BenefitTagListProps) {
+export function BenefitTagList({ benefits, maxVisible = 6, className }: BenefitTagListProps) {
   if (!benefits || benefits.length === 0) return null
 
   const condensed = condenseBenefits(benefits)
@@ -97,7 +97,7 @@ export function BenefitTagList({ benefits, maxVisible = 4, className }: BenefitT
   const overflow = condensed.length - maxVisible
 
   return (
-    <div className={cn('flex items-center justify-center gap-1.5 flex-nowrap', className)}>
+    <div className={cn('flex flex-wrap items-center justify-center gap-1', className)}>
       {visible.map((b) => (
         <BenefitTag
           key={b.short}

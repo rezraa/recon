@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq'
 import { and, eq, gt } from 'drizzle-orm'
 
+import { fetchJobDetail } from '@/lib/adapters/job-detail'
 import { fetchLinkedInDetail } from '@/lib/adapters/linkedin-detail'
 import { getDb } from '@/lib/db/client'
 import { getPreferences } from '@/lib/db/queries/preferences'
@@ -73,27 +74,44 @@ export async function enrichProcessor(job: Job<EnrichJobData>): Promise<void> {
     .set({ enrichmentAttemptedAt: new Date() })
     .where(eq(schema.jobsTable.id, jobId))
 
-  // Fetch the full description from LinkedIn
-  const sourceUrl = dbJob.sourceUrl
-  if (!sourceUrl) {
-    log('warn', 'enrich.no-source-url', { jobId })
+  // Enrich via SearXNG (search engine cached content — no direct job board contact)
+  const title = dbJob.title ?? ''
+  const company = dbJob.company ?? ''
+
+  if (!title && !company) {
+    log('warn', 'enrich.no-title-or-company', { jobId })
     return
   }
 
-  const detail = await fetchLinkedInDetail(sourceUrl)
-  if (!detail) {
-    log('warn', 'enrich.fetch-failed', { jobId, sourceUrl })
-    return
-  }
+  const detail = await fetchJobDetail(title, company)
 
-  // Store the description
-  await db
-    .update(schema.jobsTable)
-    .set({
+  // Update description and salary if we got data
+  if (detail) {
+    const updates: Record<string, unknown> = {
       descriptionText: detail.descriptionText,
       descriptionHtml: detail.descriptionHtml,
-    })
-    .where(eq(schema.jobsTable.id, jobId))
+    }
+    if (detail.salary?.min && (!dbJob.salaryMin || dbJob.salaryMin === 0)) {
+      updates.salaryMin = detail.salary.min
+    }
+    if (detail.salary?.max && (!dbJob.salaryMax || dbJob.salaryMax === 0)) {
+      updates.salaryMax = detail.salary.max
+    }
+    await db
+      .update(schema.jobsTable)
+      .set(updates)
+      .where(eq(schema.jobsTable.id, jobId))
+  }
+
+  if (!detail) {
+    log('info', 'enrich.no-search-data', { jobId, title, company })
+    // Mark as non-partial anyway — user can still click through to the listing
+    await db
+      .update(schema.jobsTable)
+      .set({ partial: false })
+      .where(eq(schema.jobsTable.id, jobId))
+    return
+  }
 
   log('info', 'enrich.description-stored', { jobId, length: detail.descriptionText.length })
 

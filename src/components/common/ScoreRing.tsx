@@ -14,12 +14,13 @@ interface ScoreRingProps {
   size?: number
 }
 
-export function ScoreRing({ score, partial = false, size = 36 }: ScoreRingProps) {
+export function ScoreRing({ score, partial = false, size = 42 }: ScoreRingProps) {
   const offset = CIRCUMFERENCE - (score / 100) * CIRCUMFERENCE
 
   if (partial) {
+    const hasScore = score > 0
     return (
-      <svg width={size} height={size} viewBox="0 0 40 40" aria-label={`Approximate score: ${score}`}>
+      <svg width={size} height={size} viewBox="0 0 40 40" aria-label={hasScore ? `Approximate score: ${score}` : 'Pending enrichment'}>
         <circle cx="20" cy="20" r="16" fill="none" stroke="#374151" strokeWidth="3" />
         <circle
           cx="20" cy="20" r="16" fill="none"
@@ -29,8 +30,8 @@ export function ScoreRing({ score, partial = false, size = 36 }: ScoreRingProps)
           style={{ animation: 'pulse-glow 2s ease-in-out infinite' }}
         />
         <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central"
-          fontSize="11" fontWeight="600" fill="#d1d5db">
-          ~{score}
+          fontSize={hasScore ? '11' : '9'} fontWeight="600" fill="#d1d5db">
+          {hasScore ? `~${score}` : '...'}
         </text>
       </svg>
     )

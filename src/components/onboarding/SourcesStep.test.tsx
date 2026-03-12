@@ -5,13 +5,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { SourcesStep } from './SourcesStep'
 
 describe('SourcesStep', () => {
-  it('[P1] should render all 6 sources from registry', () => {
+  it('[P1] should render all 10 sources from registry', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
+    expect(screen.getByText('Ashby')).toBeInTheDocument()
+    expect(screen.getByText('Greenhouse')).toBeInTheDocument()
     expect(screen.getByText('Himalayas')).toBeInTheDocument()
     expect(screen.getByText('The Muse')).toBeInTheDocument()
     expect(screen.getByText('Jobicy')).toBeInTheDocument()
+    expect(screen.getByText('Lever')).toBeInTheDocument()
     expect(screen.getByText('Remote OK')).toBeInTheDocument()
     expect(screen.getByText('RSS Feeds')).toBeInTheDocument()
+    expect(screen.getByText('SmartRecruiters')).toBeInTheDocument()
     expect(screen.getByText('Serply')).toBeInTheDocument()
   })
 
@@ -29,18 +33,22 @@ describe('SourcesStep', () => {
 
   it('[P1] should render source descriptions from registry', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
+    expect(screen.getByText('Direct from company career pages via Ashby ATS')).toBeInTheDocument()
+    expect(screen.getByText('Direct from company career pages via Greenhouse ATS')).toBeInTheDocument()
     expect(screen.getByText('Remote jobs across industries')).toBeInTheDocument()
     expect(screen.getByText('Curated US job listings')).toBeInTheDocument()
     expect(screen.getByText('Remote jobs worldwide')).toBeInTheDocument()
-    expect(screen.getByText('LinkedIn, Indeed, and custom job feeds')).toBeInTheDocument()
+    expect(screen.getByText('Direct from company career pages via Lever ATS')).toBeInTheDocument()
+    expect(screen.getByText('We Work Remotely, Jobicy, and custom job feeds')).toBeInTheDocument()
     expect(screen.getByText('Remote-first jobs worldwide')).toBeInTheDocument()
+    expect(screen.getByText('Direct from company career pages via SmartRecruiters ATS')).toBeInTheDocument()
     expect(screen.getByText('Google for Jobs search')).toBeInTheDocument()
   })
 
   it('[P1] should render Enabled indicator for open sources', () => {
     render(<SourcesStep onValidChange={vi.fn()} />)
     const enabledIndicators = screen.getAllByText('Enabled')
-    expect(enabledIndicators).toHaveLength(5)
+    expect(enabledIndicators).toHaveLength(9)
   })
 
   it('[P1] should render letter avatars (not images)', () => {
@@ -49,10 +57,13 @@ describe('SourcesStep', () => {
     const images = container.querySelectorAll('img')
     expect(images).toHaveLength(0)
     // Letter avatars should be present (first letter in circle)
+    expect(screen.getByText('A')).toBeInTheDocument() // Ashby
+    expect(screen.getByText('G')).toBeInTheDocument() // Greenhouse
     expect(screen.getByText('H')).toBeInTheDocument() // Himalayas
     expect(screen.getByText('T')).toBeInTheDocument() // The Muse
     expect(screen.getByText('J')).toBeInTheDocument() // Jobicy
-    expect(screen.getByText('S')).toBeInTheDocument() // Serply
+    expect(screen.getByText('L')).toBeInTheDocument() // Lever
+    expect(screen.getAllByText('S').length).toBeGreaterThanOrEqual(2) // Serply + SmartRecruiters
   })
 
   it('[P2] should render API key input for key-required sources', () => {

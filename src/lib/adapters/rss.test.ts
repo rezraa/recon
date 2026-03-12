@@ -49,7 +49,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  setFeedUrls([])
+  setFeedUrls(null)
 })
 
 // ─── Tests ────────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ describe('rssAdapter', () => {
     })
 
     it('[P1] should return empty array when no feed URLs configured', async () => {
-      setFeedUrls([])
+      setFeedUrls(null)
       const listings = await rssAdapter.fetchListings(defaultConfig)
       expect(listings).toEqual([])
     })
@@ -255,6 +255,21 @@ describe('extractCompanyFromTitle', () => {
   it('should extract from "Company is hiring Title" with multi-word company', () => {
     const result = extractCompanyFromTitle('Sony Interactive Entertainment is hiring SDET')
     expect(result).toEqual({ jobTitle: 'SDET', company: 'Sony Interactive Entertainment' })
+  })
+
+  it('should extract from "Company: Title" (We Work Remotely pattern)', () => {
+    const result = extractCompanyFromTitle('Proxify Ab: Senior Fullstack Developer (python)')
+    expect(result).toEqual({ jobTitle: 'Senior Fullstack Developer (python)', company: 'Proxify Ab' })
+  })
+
+  it('should extract from "Company: Title" with simple company name', () => {
+    const result = extractCompanyFromTitle('Basecamp: Rails Developer')
+    expect(result).toEqual({ jobTitle: 'Rails Developer', company: 'Basecamp' })
+  })
+
+  it('should not treat label-like prefixes as company in colon pattern', () => {
+    const result = extractCompanyFromTitle('Location: San Francisco, CA')
+    expect(result).toEqual({ jobTitle: 'Location: San Francisco, CA', company: 'Unknown' })
   })
 
   it('should return Unknown company when no pattern matches', () => {

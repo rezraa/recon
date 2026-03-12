@@ -1,9 +1,13 @@
+import { ashbyAdapter } from './ashby'
 import { SOURCE_CONFIGS } from './constants'
+import { greenhouseAdapter } from './greenhouse'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
+import { leverAdapter } from './lever'
 import { remoteokAdapter } from './remoteok'
 import { rssAdapter } from './rss'
 import { serplyAdapter } from './serply'
+import { smartrecruitersAdapter } from './smartrecruiters'
 import { themuseAdapter } from './themuse'
 import type { SourceAdapter, SourceConfig } from './types'
 
@@ -80,9 +84,13 @@ export function clearAdapterRegistry(): void {
 
 // ─── Register All Source Adapters ───────────────────────────────────────────
 
+registerAdapter(ashbyAdapter)
+registerAdapter(greenhouseAdapter)
 registerAdapter(himalayasAdapter)
 registerAdapter(themuseAdapter)
 registerAdapter(jobicyAdapter)
 registerAdapter(serplyAdapter)
+registerAdapter(leverAdapter)
 registerAdapter(remoteokAdapter)
 registerAdapter(rssAdapter)
+registerAdapter(smartrecruitersAdapter)

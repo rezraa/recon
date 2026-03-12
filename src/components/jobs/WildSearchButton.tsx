@@ -7,9 +7,12 @@ type SearchState = 'idle' | 'searching' | 'found'
 interface WildSearchButtonProps {
   query: string
   onSearchComplete?: () => void
+  /** Called after the "Found X" message fades (3s after results). Use to clear search input. */
+  onDone?: () => void
+  variant?: 'default' | 'primary'
 }
 
-export function WildSearchButton({ query, onSearchComplete }: WildSearchButtonProps) {
+export function WildSearchButton({ query, onSearchComplete, onDone, variant = 'default' }: WildSearchButtonProps) {
   const [state, setState] = useState<SearchState>('idle')
   const [foundCount, setFoundCount] = useState(0)
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -39,14 +42,15 @@ export function WildSearchButton({ query, onSearchComplete }: WildSearchButtonPr
       setState('found')
       onSearchComplete?.()
 
-      // Fade back to idle after 3s
+      // Fade back to idle after 3s, then notify parent
       fadeTimerRef.current = setTimeout(() => {
         setState('idle')
+        onDone?.()
       }, 3000)
     } catch {
       setState('idle')
     }
-  }, [query, state, onSearchComplete])
+  }, [query, state, onSearchComplete, onDone])
 
   useEffect(() => {
     return () => {
@@ -56,16 +60,25 @@ export function WildSearchButton({ query, onSearchComplete }: WildSearchButtonPr
 
   if (!query.trim()) return null
 
-  const baseClasses = 'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-300'
+  const isPrimary = variant === 'primary'
+  const baseClasses = isPrimary
+    ? 'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-300'
+    : 'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-300'
 
   if (state === 'searching') {
     return (
       <button
-        className={`${baseClasses} border border-yellow-500/30 bg-yellow-500/10 text-yellow-400`}
+        className={`${baseClasses} relative overflow-hidden border border-yellow-500/30 bg-yellow-500/10 text-yellow-400`}
         disabled
-        style={{ animation: 'pulse-glow 2s ease-in-out infinite' }}
       >
-        Searching for &quot;{query}&quot; in the wild...
+        <span className="relative z-10">Searching...</span>
+        <span
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.3), transparent)',
+            animation: 'pulse-sweep 1.8s ease-in-out infinite',
+          }}
+        />
       </button>
     )
   }
@@ -84,10 +97,13 @@ export function WildSearchButton({ query, onSearchComplete }: WildSearchButtonPr
 
   return (
     <button
-      className={`${baseClasses} border border-input bg-background text-foreground hover:bg-muted/50`}
+      className={`${baseClasses} ${isPrimary
+        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+        : 'border border-input bg-background text-foreground hover:bg-muted/50'
+      }`}
       onClick={handleClick}
     >
-      Search for &quot;{query}&quot; in the wild
+      Search in the Wild
     </button>
   )
 }

@@ -92,8 +92,8 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'rss',
     displayName: 'RSS Feeds',
     type: 'open',
-    mode: 'search',
-    description: 'LinkedIn, Indeed, and custom job feeds',
+    mode: 'feed',
+    description: 'We Work Remotely, Jobicy, and custom job feeds',
     regions: ['*'],
     attribution: {
       requiresFollowLink: true,
@@ -105,6 +105,86 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
       requestsPerDay: null,
       requestsPerMonth: null,
       cooldownMs: 60_000,
+    },
+  },
+
+  ashby: {
+    name: 'ashby',
+    displayName: 'Ashby',
+    type: 'open',
+    mode: 'search', // TODO: flip to 'feed' when going live
+    description: 'Direct from company career pages via Ashby ATS',
+    regions: ['US'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://www.ashbyhq.com',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: 900, // 15 req/min documented limit
+      requestsPerDay: null,
+      requestsPerMonth: null,
+      cooldownMs: 4_000, // ~15 req/min = 1 every 4s (conservative)
+    },
+  },
+
+  lever: {
+    name: 'lever',
+    displayName: 'Lever',
+    type: 'open',
+    mode: 'search', // TODO: flip to 'feed' when going live
+    description: 'Direct from company career pages via Lever ATS',
+    regions: ['US'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://www.lever.co',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: null, // 10 req/s standard, POST limited to 2/s
+      requestsPerDay: null,
+      requestsPerMonth: null,
+      cooldownMs: 500,
+    },
+  },
+
+  greenhouse: {
+    name: 'greenhouse',
+    displayName: 'Greenhouse',
+    type: 'open',
+    mode: 'search', // TODO: flip to 'feed' when going live
+    description: 'Direct from company career pages via Greenhouse ATS',
+    regions: ['US'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://www.greenhouse.io',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: null, // Public board API: no hard rate limits, heavily cached
+      requestsPerDay: null,
+      requestsPerMonth: null,
+      cooldownMs: 500,
+    },
+  },
+
+  smartrecruiters: {
+    name: 'smartrecruiters',
+    displayName: 'SmartRecruiters',
+    type: 'open',
+    mode: 'search', // TODO: flip to 'feed' when going live
+    description: 'Direct from company career pages via SmartRecruiters ATS',
+    regions: ['*'],
+    attribution: {
+      requiresFollowLink: true,
+      attributionUrl: 'https://www.smartrecruiters.com',
+      descriptionPolicy: 'no_modify',
+    },
+    rateLimits: {
+      requestsPerHour: null, // 10 req/s, 8 concurrent max
+      requestsPerDay: null,
+      requestsPerMonth: null,
+      cooldownMs: 500,
     },
   },
 

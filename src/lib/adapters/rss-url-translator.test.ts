@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { buildLinkedInRssHubUrl, buildSearchUrls } from './rss-url-translator'
+import { buildLinkedInRssHubUrl, buildSearchUrls, registerRssHubRoute, getRssHubRoutes, _resetRssHubRoutes } from './rss-url-translator'
 
 describe('buildLinkedInRssHubUrl', () => {
   const base = 'http://localhost:1200'
@@ -66,10 +66,17 @@ describe('buildSearchUrls', () => {
     expect(result.serply).toBeUndefined()
   })
 
+  it('should return rsshubFeeds array with LinkedIn feed', () => {
+    const result = buildSearchUrls('SDET', { rsshubUrl: 'http://localhost:1200' })
+    expect(result.rsshubFeeds).toHaveLength(1)
+    expect(result.rsshubFeeds[0]).toBe('http://localhost:1200/linkedin/jobs/all/all/SDET')
+  })
+
   it('should return serply URL when serplyKey is configured', () => {
     const result = buildSearchUrls('SDET', { serplyKey: 'test-key' })
     expect(result.linkedin).toBeUndefined()
     expect(result.serply).toBe('SDET')
+    expect(result.rsshubFeeds).toHaveLength(0)
   })
 
   it('should return both URLs when both are configured', () => {
@@ -78,13 +85,15 @@ describe('buildSearchUrls', () => {
       serplyKey: 'test-key',
     })
     expect(result.linkedin).toBeDefined()
+    expect(result.rsshubFeeds.length).toBeGreaterThanOrEqual(1)
     expect(result.serply).toBe('SDET')
   })
 
-  it('should return empty object when neither is configured', () => {
+  it('should return empty rsshubFeeds when neither is configured', () => {
     const result = buildSearchUrls('SDET', {})
     expect(result.linkedin).toBeUndefined()
     expect(result.serply).toBeUndefined()
+    expect(result.rsshubFeeds).toHaveLength(0)
   })
 
   it('should pass geoId through to LinkedIn URL', () => {
@@ -93,15 +102,60 @@ describe('buildSearchUrls', () => {
       geoId: '102265205',
     })
     expect(result.linkedin).toContain('geoId=102265205')
+    expect(result.rsshubFeeds[0]).toContain('geoId=102265205')
   })
 
   it('should handle empty query string', () => {
     const result = buildSearchUrls('', { rsshubUrl: 'http://localhost:1200' })
     expect(result.linkedin).toBeUndefined()
+    expect(result.rsshubFeeds).toHaveLength(0)
   })
 
   it('should handle whitespace-only query string', () => {
     const result = buildSearchUrls('   ', { rsshubUrl: 'http://localhost:1200' })
     expect(result.linkedin).toBeUndefined()
+    expect(result.rsshubFeeds).toHaveLength(0)
+  })
+})
+
+describe('RssHubRoute registry', () => {
+  afterEach(() => {
+    _resetRssHubRoutes()
+  })
+
+  it('should have LinkedIn route registered by default', () => {
+    const routes = getRssHubRoutes()
+    expect(routes.some(r => r.name === 'linkedin')).toBe(true)
+  })
+
+  it('should allow registering additional routes', () => {
+    const initialCount = getRssHubRoutes().length
+    registerRssHubRoute({
+      name: 'test-source',
+      buildUrl: (query, base) => `${base}/test/${encodeURIComponent(query)}`,
+    })
+    expect(getRssHubRoutes().length).toBe(initialCount + 1)
+  })
+
+  it('should include registered routes in buildSearchUrls', () => {
+    registerRssHubRoute({
+      name: 'test-source-2',
+      buildUrl: (query, base) => `${base}/test/${encodeURIComponent(query)}`,
+    })
+    const result = buildSearchUrls('engineer', { rsshubUrl: 'http://localhost:1200' })
+    // Should have LinkedIn + the newly registered test-source
+    expect(result.rsshubFeeds).toHaveLength(2)
+    expect(result.rsshubFeeds.some(url => url.includes('/test/'))).toBe(true)
+  })
+
+  it('should skip routes that throw errors gracefully', () => {
+    registerRssHubRoute({
+      name: 'broken-source',
+      buildUrl: () => { throw new Error('broken') },
+    })
+    const result = buildSearchUrls('test', { rsshubUrl: 'http://localhost:1200' })
+    // Should still have feeds from working routes, broken one is skipped
+    expect(result.rsshubFeeds.length).toBeGreaterThanOrEqual(1)
+    expect(result.rsshubFeeds.every(url => !url.includes('broken'))).toBe(true)
   })
 })

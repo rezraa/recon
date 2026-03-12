@@ -30,16 +30,29 @@ interface RssItem {
   category?: string | string[]
 }
 
+// ─── Default Feeds ──────────────────────────────────────────────────────────
+
+export const DEFAULT_FEED_URLS: string[] = [
+  // We Work Remotely — free public RSS, ~20-25 jobs per category
+  'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+  'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
+  'https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss',
+  // Jobicy — free public RSS, ~20 remote jobs
+  'https://jobicy.com/feed/newjobs',
+]
+
 // ─── Feed URL Storage ────────────────────────────────────────────────────────
 
-let _feedUrls: string[] = []
+let _feedUrls: string[] | null = []
 
-export function setFeedUrls(urls: string[]): void {
+/** Override default feeds. Pass `null` to explicitly disable all feeds (for testing). */
+export function setFeedUrls(urls: string[] | null): void {
   _feedUrls = urls
 }
 
 export function getFeedUrls(): string[] {
-  return _feedUrls
+  if (_feedUrls === null) return []
+  return _feedUrls.length > 0 ? _feedUrls : DEFAULT_FEED_URLS
 }
 
 // ─── XML Parser ──────────────────────────────────────────────────────────────
@@ -63,6 +76,17 @@ export function extractCompanyFromTitle(title: string): { jobTitle: string; comp
   // "Company is hiring Title" (RSSHub / LinkedIn pattern)
   const hiringMatch = title.match(/^(.+?)\s+is\s+hiring\s+(.+)$/i)
   if (hiringMatch) return { jobTitle: hiringMatch[2].trim(), company: hiringMatch[1].trim() }
+
+  // "Company: Title" (We Work Remotely pattern, e.g. "Proxify Ab: Senior Fullstack Developer")
+  const colonMatch = title.match(/^(.+?):\s+(.+)$/)
+  if (colonMatch) {
+    const left = colonMatch[1].trim()
+    const right = colonMatch[2].trim()
+    // Left side should look like a company name (not a label like "Location" or "Salary")
+    if (!left.match(/^(location|salary|type|category|remote|date|posted|deadline)/i)) {
+      return { jobTitle: right, company: left }
+    }
+  }
 
   // "Title at Company" or "Title @ Company"
   const atMatch = title.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i)

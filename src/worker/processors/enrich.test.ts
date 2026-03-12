@@ -15,6 +15,10 @@ vi.mock('@/lib/db/queries/preferences', () => ({
   getPreferences: vi.fn().mockResolvedValue(null),
 }))
 
+vi.mock('@/lib/adapters/job-detail', () => ({
+  fetchJobDetail: vi.fn(),
+}))
+
 vi.mock('@/lib/adapters/linkedin-detail', () => ({
   fetchLinkedInDetail: vi.fn(),
 }))
@@ -38,14 +42,14 @@ vi.mock('../logger', () => ({
   log: vi.fn(),
 }))
 
-import { fetchLinkedInDetail } from '@/lib/adapters/linkedin-detail'
+import { fetchJobDetail } from '@/lib/adapters/job-detail'
 import { getDb } from '@/lib/db/client'
 import { getResume } from '@/lib/db/queries/resume'
 import { scoreJob } from '@/lib/pipeline/scoring'
 
 import { enrichProcessor } from './enrich'
 
-const mockFetchDetail = vi.mocked(fetchLinkedInDetail)
+const mockFetchJobDetail = vi.mocked(fetchJobDetail)
 const mockGetDb = vi.mocked(getDb)
 const mockGetResume = vi.mocked(getResume)
 const mockScoreJob = vi.mocked(scoreJob)
@@ -60,7 +64,7 @@ function createMockDbRow(overrides?: Record<string, unknown>) {
   return {
     id: 'job-1',
     externalId: 'ext-1',
-    sourceName: 'rss',
+    sourceName: 'searxng',
     title: 'Software Engineer',
     company: 'TechCorp',
     descriptionText: '',
@@ -106,12 +110,11 @@ describe('enrichProcessor', () => {
   })
 
   it('[P1] should skip when job is already enriched (partial=false)', async () => {
-    const { mockUpdate } = setupDb([createMockDbRow({ partial: false })])
+    setupDb([createMockDbRow({ partial: false })])
 
     await enrichProcessor(createMockJob({ jobId: 'job-1' }))
 
-    // Should NOT attempt to fetch detail or update
-    expect(mockFetchDetail).not.toHaveBeenCalled()
+    expect(mockFetchJobDetail).not.toHaveBeenCalled()
   })
 
   it('[P1] should skip when enrichment was attempted within 1 hour', async () => {
@@ -120,13 +123,13 @@ describe('enrichProcessor', () => {
 
     await enrichProcessor(createMockJob({ jobId: 'job-1' }))
 
-    expect(mockFetchDetail).not.toHaveBeenCalled()
+    expect(mockFetchJobDetail).not.toHaveBeenCalled()
   })
 
   it('[P1] should proceed when enrichment was attempted more than 1 hour ago', async () => {
     const oldAttempt = new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-    const { mockUpdate } = setupDb([createMockDbRow({ enrichmentAttemptedAt: oldAttempt })])
-    mockFetchDetail.mockResolvedValue({
+    setupDb([createMockDbRow({ enrichmentAttemptedAt: oldAttempt })])
+    mockFetchJobDetail.mockResolvedValue({
       descriptionText: 'Full job description here',
       descriptionHtml: '<p>Full job description here</p>',
     })
@@ -142,12 +145,12 @@ describe('enrichProcessor', () => {
 
     await enrichProcessor(createMockJob({ jobId: 'job-1' }))
 
-    expect(mockFetchDetail).toHaveBeenCalled()
+    expect(mockFetchJobDetail).toHaveBeenCalledWith('Software Engineer', 'TechCorp')
   })
 
   it('[P1] should record enrichment_attempted_at before fetching (prevents retry storms)', async () => {
     const { mockUpdate, mockSet } = setupDb([createMockDbRow()])
-    mockFetchDetail.mockResolvedValue(null) // fetch fails
+    mockFetchJobDetail.mockResolvedValue(null) // fetch fails
 
     await enrichProcessor(createMockJob({ jobId: 'job-1' }))
 
@@ -158,11 +161,12 @@ describe('enrichProcessor', () => {
     )
   })
 
-  it('[P1] should fetch and store description, then re-score', async () => {
-    const { mockUpdate, mockSet } = setupDb([createMockDbRow()])
-    mockFetchDetail.mockResolvedValue({
+  it('[P1] should enrich via SearXNG and re-score', async () => {
+    const { mockSet } = setupDb([createMockDbRow()])
+    mockFetchJobDetail.mockResolvedValue({
       descriptionText: 'Full description with requirements',
       descriptionHtml: '<p>Full description with requirements</p>',
+      salary: { min: 66560 },
     })
     mockGetResume.mockResolvedValue({
       id: 'r-1',
@@ -175,6 +179,9 @@ describe('enrichProcessor', () => {
     } as never)
 
     await enrichProcessor(createMockJob({ jobId: 'job-1' }))
+
+    // Should have called fetchJobDetail with title and company
+    expect(mockFetchJobDetail).toHaveBeenCalledWith('Software Engineer', 'TechCorp')
 
     // Should have called scoreJob
     expect(mockScoreJob).toHaveBeenCalled()
@@ -193,12 +200,12 @@ describe('enrichProcessor', () => {
 
     await enrichProcessor(createMockJob({ jobId: 'nonexistent' }))
 
-    expect(mockFetchDetail).not.toHaveBeenCalled()
+    expect(mockFetchJobDetail).not.toHaveBeenCalled()
   })
 
   it('[P2] should set partial=false even when no resume exists', async () => {
     const { mockSet } = setupDb([createMockDbRow()])
-    mockFetchDetail.mockResolvedValue({
+    mockFetchJobDetail.mockResolvedValue({
       descriptionText: 'Some description',
       descriptionHtml: '<p>Some description</p>',
     })

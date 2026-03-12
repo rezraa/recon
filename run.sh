@@ -90,9 +90,9 @@ EOF
   info "Created .env with local dev settings"
 fi
 
-# 3. Start infrastructure (postgres + redis only, not the app container)
-info "Starting Postgres & Redis..."
-$DC up -d postgres redis
+# 3. Start infrastructure (postgres, redis, rsshub, searxng — not the app container)
+info "Starting Postgres, Redis, RSSHub & SearXNG..."
+$DC up -d postgres redis rsshub searxng
 
 # 4. Wait for healthy services (uses Docker healthcheck defined in docker-compose.yml)
 info "Waiting for databases to be ready..."

@@ -121,36 +121,41 @@ describe('JobListRow', () => {
     expect(screen.getByText('Up to $150k')).toBeDefined()
   })
 
-  it('renders location', () => {
-    renderRow({ location: 'New York, NY' })
+  it('renders combined location with work style for on-site', () => {
+    renderRow({ isRemote: false, location: 'New York, NY' })
     expect(screen.getByText('New York, NY')).toBeDefined()
   })
 
-  it('renders work style with icon for remote jobs', () => {
-    const { container } = renderRow({ isRemote: true })
+  it('renders Remote with location when remote has a location', () => {
+    renderRow({ isRemote: true, location: 'Austin, TX' })
+    expect(screen.getByText('Remote · Austin, TX')).toBeDefined()
+  })
+
+  it('renders Remote alone when no location', () => {
+    const { container } = renderRow({ isRemote: true, location: null })
     expect(screen.getByText('Remote')).toBeDefined()
     expect(container.querySelector('svg')).not.toBeNull()
   })
 
-  it('renders on-site work style for non-remote jobs', () => {
-    renderRow({ isRemote: false })
+  it('renders On-site when non-remote with no location', () => {
+    renderRow({ isRemote: false, location: null })
     expect(screen.getByText('On-site')).toBeDefined()
   })
 
-  it('renders hybrid work style when location contains hybrid', () => {
+  it('renders hybrid work style with location', () => {
     renderRow({ isRemote: false, location: 'New York, NY (Hybrid)' })
-    expect(screen.getByText('Hybrid')).toBeDefined()
+    expect(screen.getByText('Hybrid · New York, NY')).toBeDefined()
   })
 
-  it('renders condensed benefit tags', () => {
-    renderRow({ benefits: ['Health insurance', '401k matching'] })
+  it('renders benefit tags when benefits exist', () => {
+    renderRow({ benefits: ['Health insurance', '401k matching', 'Unlimited PTO'] })
     expect(screen.getByText('Health')).toBeDefined()
     expect(screen.getByText('401k')).toBeDefined()
+    expect(screen.getByText('Unlimited PTO')).toBeDefined()
   })
 
   it('handles null benefits gracefully', () => {
     renderRow({ benefits: null })
-    // Should render without crashing
     expect(screen.getByText('Software Engineer')).toBeDefined()
   })
 

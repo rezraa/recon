@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DiscoveryBanner } from '@/components/DiscoveryBanner'
+import { JobCard } from '@/components/jobs/JobCard'
+import { JobCardSkeletonGrid } from '@/components/jobs/JobCardSkeleton'
 import { JobListRow } from '@/components/jobs/JobListRow'
+import { ViewToggle, type ViewMode } from '@/components/jobs/ViewToggle'
 import { WildSearchButton } from '@/components/jobs/WildSearchButton'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -36,6 +39,13 @@ export default function Home() {
   const { data: resumeData, isLoading: isResumeLoading } = useResumeRedirect({
     redirectTo: '/onboarding',
     when: 'missing',
+  })
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('recon-feed-view-mode')
+      if (stored === 'card' || stored === 'list') return stored
+    }
+    return 'list'
   })
   const [showAll, setShowAll] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -127,7 +137,7 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {hasLoadedJobs && (
+          {hasLoadedJobs && !debouncedQuery && (
             <Button
               onClick={handleRunDiscovery}
               disabled={isStarting || runId !== null}
@@ -135,6 +145,9 @@ export default function Home() {
             >
               {isStarting ? 'Starting...' : 'Run Discovery'}
             </Button>
+          )}
+          {hasLoadedJobs && debouncedQuery && (
+            <WildSearchButton query={debouncedQuery} onSearchComplete={() => mutate()} onDone={() => setSearchInput('')} variant="primary" />
           )}
           <Link href="/settings">
             <Button variant="ghost" size="sm" aria-label="Settings">
@@ -175,14 +188,9 @@ export default function Home() {
         </div>
       )}
 
-      {debouncedQuery && (
-        <div className="mb-4">
-          <WildSearchButton query={debouncedQuery} onSearchComplete={() => mutate()} />
-        </div>
-      )}
 
       {hasLoadedJobs && (
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input
               type="checkbox"
@@ -195,10 +203,17 @@ export default function Home() {
             />
             Show all jobs
           </label>
+          <ViewToggle
+            view={viewMode}
+            onViewChange={(v) => {
+              setViewMode(v)
+              localStorage.setItem('recon-feed-view-mode', v)
+            }}
+          />
         </div>
       )}
 
-      {isLoading && (
+      {isLoading && viewMode === 'list' && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -215,6 +230,10 @@ export default function Home() {
         </div>
       )}
 
+      {isLoading && viewMode === 'card' && (
+        <JobCardSkeletonGrid />
+      )}
+
       {runId !== null && (
         <div className="discovery-pulse" />
       )}
@@ -229,18 +248,17 @@ export default function Home() {
         </p>
       )}
 
-      {!isLoading && jobs.length > 0 && (
+      {!isLoading && jobs.length > 0 && viewMode === 'list' && (
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[4%] text-center">Match</TableHead>
-              <TableHead className="w-[22%]">Title / Company</TableHead>
-              <TableHead className="w-[11%] text-center">Salary</TableHead>
-              <TableHead className="w-[8%] text-center">Work Style</TableHead>
-              <TableHead className="w-[12%] text-center">Location</TableHead>
-              <TableHead className="w-[25%] text-center">Benefits</TableHead>
+              <TableHead className="w-[5%] text-center">Match</TableHead>
+              <TableHead className="w-[28%]">Title / Company</TableHead>
+              <TableHead className="w-[12%] text-center">Salary</TableHead>
+              <TableHead className="w-[18%] text-center">Location</TableHead>
+              <TableHead className="w-[20%] text-center">Benefits</TableHead>
               <TableHead className="w-[8%] text-center">Source</TableHead>
-              <TableHead className="w-[10%] text-center">Discovered</TableHead>
+              <TableHead className="w-[9%] text-center">Discovered</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -249,6 +267,14 @@ export default function Home() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {!isLoading && jobs.length > 0 && viewMode === 'card' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} onSelect={() => {}} />
+          ))}
+        </div>
       )}
     </div>
   )

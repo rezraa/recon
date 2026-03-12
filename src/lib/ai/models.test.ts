@@ -31,7 +31,7 @@ describe('models', () => {
 
       const model = await getEmbeddingModel()
       expect(model).toBe(mockModel)
-      expect(mockPipeline).toHaveBeenCalledWith('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+      expect(mockPipeline).toHaveBeenCalledWith('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { dtype: 'fp32' })
     })
 
     it('[P1] should return cached model on subsequent calls (singleton)', async () => {

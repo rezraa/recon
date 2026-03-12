@@ -1,53 +1,13 @@
-import { Building2, Globe, RefreshCw } from 'lucide-react'
 import { memo } from 'react'
 
-import { ScoreRing } from '@/components/common/ScoreRing'
 import { BenefitTagList } from '@/components/common/BenefitTag'
+import { ScoreRing } from '@/components/common/ScoreRing'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { JobItem } from '@/hooks/useJobs'
 import { cn } from '@/lib/utils'
+import { decodeHtmlEntities, formatDate, formatSalary, inferWorkStyle } from '@/lib/utils/format'
 
-/** Decode HTML entities like &#038; &amp; &lt; etc. from source-scraped text */
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-}
-
-function formatSalary(min: number | null, max: number | null): string {
-  const lo = min && min > 0 ? min : null
-  const hi = max && max > 0 ? max : null
-  if (lo && hi) return `$${Math.round(lo / 1000)}k – $${Math.round(hi / 1000)}k`
-  if (lo) return `$${Math.round(lo / 1000)}k+`
-  if (hi) return `Up to $${Math.round(hi / 1000)}k`
-  return ''
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-/** Infer work style from isRemote flag and location text */
-function inferWorkStyle(isRemote: boolean, location: string | null): { label: string; icon: typeof Globe } {
-  if (isRemote) return { label: 'Remote', icon: Globe }
-  const loc = (location ?? '').toLowerCase()
-  if (loc.includes('hybrid')) return { label: 'Hybrid', icon: RefreshCw }
-  return { label: 'On-site', icon: Building2 }
-}
-
-function SourceAttribution({ sources }: { sources: Array<{ name: string }> }) {
+export function SourceAttribution({ sources }: { sources: Array<{ name: string }> }) {
   if (sources.length <= 1) {
     return <span className="text-muted-foreground">{sources[0]?.name ?? '—'}</span>
   }
@@ -85,14 +45,16 @@ export const JobListRow = memo(function JobListRow({ job, selected, className }:
         className,
       )}
     >
-      <TableCell className="text-center">
+      <TableCell className="text-center pr-4">
         {job.matchScore !== null ? (
           <ScoreRing score={job.matchScore} partial={job.partial} />
+        ) : job.partial ? (
+          <ScoreRing score={0} partial />
         ) : (
           <span className="text-xs text-[var(--fg-muted)] font-mono">--</span>
         )}
       </TableCell>
-      <TableCell>
+      <TableCell className="pr-5">
         <div className="min-w-0">
           {job.sourceUrl ? (
             <a
@@ -109,37 +71,36 @@ export const JobListRow = memo(function JobListRow({ job, selected, className }:
               {title}
             </span>
           )}
-          <span className="text-xs text-muted-foreground truncate block">
+          <span className="text-[13px] text-muted-foreground truncate block">
             {company}
           </span>
         </div>
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center px-4">
         {salaryText && (
-          <span className="text-xs font-mono text-[var(--tag-salary)] whitespace-nowrap">
+          <span className="text-sm font-mono text-[var(--tag-salary)] whitespace-nowrap">
             {salaryText}
           </span>
         )}
       </TableCell>
-      <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-1 text-xs whitespace-nowrap">
-          <WorkIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-          <span className="text-muted-foreground">{workStyle.label}</span>
+      <TableCell className="text-center pl-4">
+        <div className="flex items-center justify-center gap-1.5 text-sm">
+          <WorkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-muted-foreground truncate">{workStyle.label}</span>
         </div>
       </TableCell>
       <TableCell className="text-center">
-        <span className="text-xs truncate block">{job.location ?? '—'}</span>
+        {job.benefits && job.benefits.length > 0 && (
+          <BenefitTagList benefits={job.benefits} maxVisible={3} />
+        )}
       </TableCell>
       <TableCell className="text-center">
-        <BenefitTagList benefits={job.benefits ?? []} />
-      </TableCell>
-      <TableCell className="text-center">
-        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+        <span className="text-[13px] text-muted-foreground whitespace-nowrap">
           <SourceAttribution sources={job.sources ?? []} />
         </span>
       </TableCell>
       <TableCell className="text-center">
-        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+        <span className="text-[13px] text-muted-foreground whitespace-nowrap">
           {formatDate(job.discoveredAt)}
         </span>
       </TableCell>

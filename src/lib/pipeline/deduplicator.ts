@@ -68,6 +68,11 @@ export async function deduplicate(
         updates.sources = [...existingSources, ...job.sources]
       }
 
+      // Re-open if previously closed (job reappeared on the board)
+      if (record.closedAt !== null) {
+        updates.closedAt = null
+      }
+
       // Never overwrite: discoveredAt, pipelineStage, reviewedAt, appliedAt
       if (Object.keys(updates).length > 0) {
         updates.updatedAt = new Date()

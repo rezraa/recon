@@ -126,3 +126,16 @@ export function validateListings(
 
   return valid
 }
+
+// ─── delayWithJitter ──────────────────────────────────────────────────────
+
+/**
+ * Wait for a base delay plus random jitter (0-50% of base).
+ * Prevents "thundering herd" patterns when fetching from multiple companies.
+ */
+export async function delayWithJitter(baseMs: number): Promise<void> {
+  if (baseMs <= 0) return
+  // Bi-directional jitter: ±25% of base time for natural request distribution
+  const jitter = (Math.random() - 0.5) * (baseMs * 0.5)
+  await new Promise((resolve) => setTimeout(resolve, Math.max(0, baseMs + jitter)))
+}

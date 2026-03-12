@@ -8,11 +8,15 @@ import jobicyFixture from './__fixtures__/jobicy-response.json'
 import remoteokFixture from './__fixtures__/remoteok-response.json'
 import serplyFixture from './__fixtures__/serply-response.json'
 import themuseFixture from './__fixtures__/themuse-response.json'
+import { _setDelay as setAshbyDelay } from './ashby'
+import { _setDelay as setGreenhouseDelay } from './greenhouse'
+import { _setDelay as setLeverDelay } from './lever'
 import { himalayasAdapter } from './himalayas'
 import { jobicyAdapter } from './jobicy'
 import { getAllAdapters } from './registry'
 import { remoteokAdapter } from './remoteok'
 import { serplyAdapter } from './serply'
+import { _setDelay as setSmartRecruitersDelay } from './smartrecruiters'
 import { themuseAdapter } from './themuse'
 import type { RawJobListing } from './types'
 import { rawJobListingSchema } from './types'
@@ -20,7 +24,27 @@ import { rawJobListingSchema } from './types'
 // ─── MSW Handlers ──────────────────────────────────────────────────────────
 
 function setupAllHandlers() {
+  // Disable delays for ATS adapters in tests
+  setGreenhouseDelay(0)
+  setAshbyDelay(0)
+  setSmartRecruitersDelay(0)
+  setLeverDelay(0)
+
   server.use(
+    // ATS adapters — return empty results (compliance test just checks no throw)
+    http.get('https://boards-api.greenhouse.io/v1/boards/:slug/jobs', () => {
+      return HttpResponse.json({ jobs: [] })
+    }),
+    http.get('https://api.ashbyhq.com/posting-api/job-board/:slug', () => {
+      return HttpResponse.json({ jobs: [], apiVersion: '1.0' })
+    }),
+    http.get('https://api.smartrecruiters.com/v1/companies/:slug/postings', () => {
+      return HttpResponse.json({ content: [], totalFound: 0, limit: 100, offset: 0 })
+    }),
+    http.get('https://api.lever.co/v0/postings/:slug', () => {
+      return HttpResponse.json([])
+    }),
+    // Original adapters
     http.get('https://himalayas.app/jobs/api', () => {
       return HttpResponse.json(himalayasFixture)
     }),
@@ -394,11 +418,11 @@ describe('Optional getRateLimitStatus', () => {
 // ─── Registry Validation ───────────────────────────────────────────────────
 
 describe('Registry: all adapters registered', () => {
-  it('should have all 6 adapters registered', () => {
+  it('should have all 10 adapters registered', () => {
     const adapters = getAllAdapters()
-    expect(adapters).toHaveLength(6)
+    expect(adapters).toHaveLength(10)
     const names = adapters.map((a) => a.name).sort()
-    expect(names).toEqual(['himalayas', 'jobicy', 'remoteok', 'rss', 'serply', 'themuse'])
+    expect(names).toEqual(['ashby', 'greenhouse', 'himalayas', 'jobicy', 'lever', 'remoteok', 'rss', 'serply', 'smartrecruiters', 'themuse'])
   })
 
   it('should have real implementations (not stubs)', async () => {

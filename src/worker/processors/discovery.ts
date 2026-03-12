@@ -95,23 +95,33 @@ async function loadPreferences(): Promise<AdapterConfig['preferences']> {
 
   let targetTitles = Array.isArray(prefs?.targetTitles) ? prefs.targetTitles as string[] : []
 
-  // If no targetTitles set by user, derive from resume
-  if (targetTitles.length === 0) {
+  let locations = Array.isArray(prefs?.locations) ? prefs.locations as string[] : []
+
+  // If no targetTitles or locations set by user, derive from resume
+  if (targetTitles.length === 0 || locations.length === 0) {
     const resumeRow = await getResume()
     if (resumeRow) {
-      const parsedData = resumeRow.parsedData as { jobTitles?: string[] } | null
-      const jobTitles = Array.isArray(parsedData?.jobTitles) ? parsedData.jobTitles : []
-      const derived = getResumeSearchTitle(jobTitles)
-      if (derived) {
-        targetTitles = [derived]
-        log('info', 'pipeline.preferences.derived', { from: jobTitles[0], derived })
+      const parsedData = resumeRow.parsedData as { jobTitles?: string[]; location?: string } | null
+
+      if (targetTitles.length === 0) {
+        const jobTitles = Array.isArray(parsedData?.jobTitles) ? parsedData.jobTitles : []
+        const derived = getResumeSearchTitle(jobTitles)
+        if (derived) {
+          targetTitles = [derived]
+          log('info', 'pipeline.preferences.derived', { from: jobTitles[0], derived })
+        }
+      }
+
+      if (locations.length === 0 && parsedData?.location) {
+        locations = [parsedData.location]
+        log('info', 'pipeline.preferences.location-from-resume', { location: parsedData.location })
       }
     }
   }
 
   return {
     targetTitles,
-    locations: Array.isArray(prefs?.locations) ? prefs.locations as string[] : [],
+    locations,
     remotePreference: prefs?.remotePreference ?? null,
   }
 }
@@ -503,6 +513,73 @@ async function fetchAllSources(
   return successfulFetches
 }
 
+// ─── Cache check: skip listings already in DB ───────────────────────────────
+
+const PRE_FILTER_BATCH_SIZE = 500
+
+async function filterKnownListings(
+  fetches: FetchResult[],
+): Promise<{ filtered: FetchResult[]; cacheHits: number }> {
+  const db = getDb()
+
+  // Collect all (source_name, external_id) pairs across all fetches
+  const allPairs: Array<{ source: string; externalId: string }> = []
+  for (const { listings } of fetches) {
+    for (const listing of listings) {
+      allPairs.push({ source: listing.source_name, externalId: listing.external_id })
+    }
+  }
+
+  if (allPairs.length === 0) return { filtered: fetches, cacheHits: 0 }
+
+  // Batch query DB for existing external_ids (chunked to avoid huge IN clauses)
+  const existingSet = new Set<string>()
+
+  for (let i = 0; i < allPairs.length; i += PRE_FILTER_BATCH_SIZE) {
+    const batch = allPairs.slice(i, i + PRE_FILTER_BATCH_SIZE)
+
+    // Build OR conditions for this batch
+    const conditions = batch.map(
+      (p) => sql`(${schema.jobsTable.sourceName} = ${p.source} AND ${schema.jobsTable.externalId} = ${p.externalId})`,
+    )
+
+    const rows = await db
+      .select({
+        sourceName: schema.jobsTable.sourceName,
+        externalId: schema.jobsTable.externalId,
+        closedAt: schema.jobsTable.closedAt,
+      })
+      .from(schema.jobsTable)
+      .where(sql.join(conditions, sql` OR `))
+
+    for (const row of rows) {
+      // Don't skip closed jobs — let them through so they can be re-opened
+      if (row.closedAt) continue
+      existingSet.add(`${row.sourceName}::${row.externalId}`)
+    }
+  }
+
+  if (existingSet.size === 0) return { filtered: fetches, cacheHits: 0 }
+
+  // Filter out known listings from each fetch result
+  let cacheHits = 0
+  const filtered: FetchResult[] = []
+
+  for (const fetch of fetches) {
+    const newListings = fetch.listings.filter((listing) => {
+      const key = `${listing.source_name}::${listing.external_id}`
+      if (existingSet.has(key)) {
+        cacheHits++
+        return false
+      }
+      return true
+    })
+    filtered.push({ source: fetch.source, listings: newListings })
+  }
+
+  return { filtered, cacheHits }
+}
+
 // ─── Phase 2: Normalize, embed, dedup, score, insert ────────────────────────
 
 async function processAllJobs(
@@ -511,10 +588,21 @@ async function processAllJobs(
   salaryTarget: number | null,
   runId: string,
 ): Promise<void> {
+  // Cache check: skip listings already in DB (saves normalize + embed work)
+  const totalFetched = fetches.reduce((sum, f) => sum + f.listings.length, 0)
+  const { filtered: freshFetches, cacheHits } = await filterKnownListings(fetches)
+  const totalAfterFilter = freshFetches.reduce((sum, f) => sum + f.listings.length, 0)
+
+  log('info', 'pipeline.cacheCheck.done', {
+    totalFetched,
+    cacheHits,
+    newToProcess: totalAfterFilter,
+  })
+
   // Normalize and embed each source's listings sequentially (CPU-bound)
   const allNormalized: NormalizedJob[] = []
 
-  for (const { source, listings } of fetches) {
+  for (const { source, listings } of freshFetches) {
     if (listings.length === 0) continue
 
     const { normalized } = await normalize(listings)
@@ -554,10 +642,10 @@ async function processAllJobs(
     log('info', 'pipeline.insert.done', { count: dedupResult.new.length, scored: false })
   }
 
-  // Update run counters
+  // Update run counters (cache hits = same source/id, dedup = cross-source matches)
   await incrementRunCounters(runId, {
     listingsNew: dedupResult.new.length,
-    listingsDeduplicated: dedupResult.duplicateCount,
+    listingsDeduplicated: cacheHits + dedupResult.duplicateCount,
   })
 
   // Score + update existing dedup matches that had no score (already in DB)
@@ -569,6 +657,65 @@ async function processAllJobs(
       existingScored: count,
       skippedAlreadyScored: dedupResult.updated.length - dedupResult.updatedNeedScore.length,
     })
+  }
+}
+
+// ─── Mark closed jobs ───────────────────────────────────────────────────────
+
+/**
+ * ATS adapters return the complete set of active jobs per source.
+ * If a job was in our DB but is no longer in the API response,
+ * the posting has been removed (filled/closed).
+ *
+ * Only applies to sources that return complete listings — not RSS,
+ * search engines, or aggregators that return partial results.
+ */
+const COMPLETE_LISTING_SOURCES = new Set(['greenhouse', 'ashby', 'lever', 'smartrecruiters'])
+
+async function markClosedJobs(fetches: FetchResult[]): Promise<void> {
+  const db = getDb()
+
+  for (const { source, listings } of fetches) {
+    if (!COMPLETE_LISTING_SOURCES.has(source)) continue
+    if (listings.length === 0) continue // empty fetch = possible error, don't mark everything closed
+
+    // Collect all external_ids from the fresh fetch
+    const freshIds = new Set(listings.map((l) => l.external_id))
+
+    // Get all active (non-closed) jobs from this source in DB
+    const dbJobs = await db
+      .select({
+        id: schema.jobsTable.id,
+        externalId: schema.jobsTable.externalId,
+      })
+      .from(schema.jobsTable)
+      .where(
+        and(
+          eq(schema.jobsTable.sourceName, source),
+          sql`${schema.jobsTable.closedAt} IS NULL`,
+        ),
+      )
+
+    // Any DB job not in the fresh set → mark as closed
+    const closedIds: string[] = []
+    for (const dbJob of dbJobs) {
+      if (!freshIds.has(dbJob.externalId)) {
+        closedIds.push(dbJob.id)
+      }
+    }
+
+    if (closedIds.length > 0) {
+      await db
+        .update(schema.jobsTable)
+        .set({ closedAt: new Date(), updatedAt: new Date() })
+        .where(sql`${schema.jobsTable.id} = ANY(ARRAY[${sql.join(closedIds.map(id => sql`${id}::uuid`), sql`,`)}])`)
+
+      log('info', 'pipeline.closedJobs', {
+        source,
+        closed: closedIds.length,
+        active: dbJobs.length - closedIds.length,
+      })
+    }
   }
 }
 
@@ -605,6 +752,9 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
     failed: adapters.length - fetches.length,
     totalListings: fetches.reduce((sum, f) => sum + f.listings.length, 0),
   })
+
+  // Phase 1.5: Mark jobs as closed if they disappeared from complete-listing sources
+  await markClosedJobs(fetches)
 
   // Phase 2: Normalize → embed → dedup → insert → score (sequential, one pass)
   await processAllJobs(fetches, resume, salaryTarget, runId)

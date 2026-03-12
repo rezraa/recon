@@ -265,6 +265,65 @@ function extractExperience(lines: string[]): ExperienceEntry[] {
   return entries
 }
 
+// ─── Location Extraction (reuses maps from location.ts) ─────────────────────
+
+import { extractCountry } from './location'
+
+/**
+ * Extract location from resume preamble/contact lines.
+ * Works internationally — handles:
+ *   "Fair Lawn, NJ"           → "Fair Lawn, NJ"
+ *   "San Francisco, CA 94105" → "San Francisco, CA"
+ *   "London, UK"              → "London, UK"
+ *   "Berlin, Germany"         → "Berlin, Germany"
+ *   "123 Main St, Fair Lawn, NJ 07410" → "Fair Lawn, NJ"
+ *   "Toronto, ON, Canada"     → "Toronto, ON, Canada"
+ *
+ * Strategy: scan preamble lines for comma-separated segments
+ * that resolve to a known country/state via extractCountry().
+ * Return the city + region portion (strip street addresses and ZIP codes).
+ */
+export function extractLocation(lines: string[]): string | undefined {
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.length > 200) continue
+
+    // Skip lines that look like URLs, emails, phone numbers, or section headers
+    if (/^(https?:|www\.|mailto:|[\w.-]+@|\+?\d[\d\s()-]{7,}|[A-Z]{2,}\s*[-–:])/i.test(trimmed)) continue
+
+    // Split on commas, work with segments
+    const parts = trimmed.split(',').map(p => p.trim()).filter(Boolean)
+    if (parts.length < 2) continue
+
+    // Try from the rightmost segment backward — find one that resolves to a country
+    for (let i = parts.length - 1; i >= 1; i--) {
+      // Strip ZIP/postal codes for matching
+      const cleaned = parts[i].replace(/\s+\d{4,6}(-\d{4})?$/, '').trim()
+      if (!cleaned) continue
+
+      const country = extractCountry(cleaned)
+      if (country === 'Unknown') continue
+
+      // Found a recognized region/state/country — build location string
+      // Take the city (segment before) + this segment
+      const city = parts[i - 1]
+        .replace(/^\d+\s+[\w\s.]+(?:St|Ave|Blvd|Rd|Dr|Ln|Way|Ct|Pl|Pkwy)\b\.?\s*/i, '') // strip street address prefix
+        .trim()
+
+      if (!city || city.length < 2) continue
+
+      // If there's a region segment between city and country (e.g. "Toronto, ON, Canada")
+      if (i >= 2 && parts[i - 1].length <= 3) {
+        return `${parts[i - 2].trim()}, ${parts[i - 1].trim()}, ${cleaned}`
+      }
+
+      return `${city}, ${cleaned}`
+    }
+  }
+
+  return undefined
+}
+
 function extractJobTitles(
   experience: ExperienceEntry[],
   summarySections: Section[],
@@ -313,6 +372,7 @@ export async function parseResume(buffer: Buffer, mimeType = 'application/pdf'):
 
   const sections = splitIntoSections(text)
 
+  const preambleSections = sections.filter((s) => s.name === 'preamble')
   const skillsSections = sections.filter((s) => s.name === 'skills')
   const experienceSections = sections.filter((s) => s.name === 'experience')
   const summarySections = sections.filter((s) => s.name === 'summary')
@@ -321,5 +381,9 @@ export async function parseResume(buffer: Buffer, mimeType = 'application/pdf'):
   const experience = experienceSections.flatMap((s) => extractExperience(s.lines))
   const jobTitles = extractJobTitles(experience, summarySections)
 
-  return { skills, experience, jobTitles }
+  // Extract location from preamble (contact info before first section)
+  const preambleLines = preambleSections.flatMap((s) => s.lines)
+  const location = extractLocation(preambleLines)
+
+  return { skills, experience, jobTitles, ...(location ? { location } : {}) }
 }

@@ -21,7 +21,7 @@ describe('WildSearchButton', () => {
 
   it('should show button with query text when search bar has content', () => {
     render(<WildSearchButton query="SDET" />)
-    expect(screen.getByText(/Search for "SDET" in the wild/)).toBeDefined()
+    expect(screen.getByText(/Search in the Wild/)).toBeDefined()
   })
 
   it('should show searching state when clicked', async () => {
@@ -32,7 +32,7 @@ describe('WildSearchButton', () => {
     render(<WildSearchButton query="SDET" />)
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/Search for "SDET" in the wild/))
+      fireEvent.click(screen.getByText(/Search in the Wild/))
     })
 
     // After the fetch resolves, should show found state
@@ -47,7 +47,7 @@ describe('WildSearchButton', () => {
     render(<WildSearchButton query="React Developer" />)
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/Search for "React Developer" in the wild/))
+      fireEvent.click(screen.getByText(/Search in the Wild/))
     })
 
     expect(screen.getByText(/Found 12 new results/)).toBeDefined()
@@ -62,7 +62,7 @@ describe('WildSearchButton', () => {
     render(<WildSearchButton query="SDET" onSearchComplete={onComplete} />)
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/Search for "SDET" in the wild/))
+      fireEvent.click(screen.getByText(/Search in the Wild/))
     })
 
     expect(onComplete).toHaveBeenCalledOnce()
@@ -76,7 +76,7 @@ describe('WildSearchButton', () => {
     render(<WildSearchButton query="SDET" />)
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/Search for "SDET" in the wild/))
+      fireEvent.click(screen.getByText(/Search in the Wild/))
     })
 
     expect(screen.getByText(/Found 1 new result$/)).toBeDefined()
@@ -88,10 +88,10 @@ describe('WildSearchButton', () => {
     render(<WildSearchButton query="SDET" />)
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/Search for "SDET" in the wild/))
+      fireEvent.click(screen.getByText(/Search in the Wild/))
     })
 
     // Should return to idle state
-    expect(screen.getByText(/Search for "SDET" in the wild/)).toBeDefined()
+    expect(screen.getByText(/Search in the Wild/)).toBeDefined()
   })
 })

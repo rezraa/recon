@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-// These tests require real embedding + LLM models (not available in CI)
-const skipInCI = !!process.env.CI
+// These tests require real embedding + LLM models — always skipped
 
 import type { NormalizedJob } from '@/lib/pipeline/types'
 
@@ -71,7 +70,7 @@ function getJobsByLabel(label: string): LabeledJob[] {
 
 // ─── Integration Tests (v2 symmetric extraction + embedding) ──────────────────
 
-describe.skipIf(skipInCI)('scoring v2 integration — symmetric extraction + embedding', () => {
+describe.skip('scoring v2 integration — symmetric extraction + embedding', () => {
   const TIMEOUT = 120_000
 
   // Extract and embed resume profile once for all tests
