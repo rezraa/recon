@@ -19,9 +19,11 @@ import type { NormalizedJob } from '@/lib/pipeline/types'
 import {
   computeSalary,
   embedProfile,
+  isTitleOnly,
   parseExtraction,
   scaleScore,
   scoreJob,
+  scorePartialJob,
   stripBoilerplate,
   type EmbeddedProfile,
   type ProfileExtraction,
@@ -524,5 +526,146 @@ describe('embedProfile', () => {
     await embedProfile(profile)
 
     expect(mockComputeEmbedding).toHaveBeenCalledWith('none')
+  })
+})
+
+// ─── isTitleOnly ──────────────────────────────────────────────────────────
+
+describe('isTitleOnly', () => {
+  it('[P1] should return true when description is empty', () => {
+    expect(isTitleOnly('Software Engineer', '')).toBe(true)
+  })
+
+  it('[P1] should return true when description is whitespace', () => {
+    expect(isTitleOnly('Software Engineer', '   ')).toBe(true)
+  })
+
+  it('[P1] should return true when description equals title', () => {
+    expect(isTitleOnly('Software Engineer', 'Software Engineer')).toBe(true)
+  })
+
+  it('[P1] should return true when short description contains title', () => {
+    expect(isTitleOnly('SDET', 'SDET - Apply now')).toBe(true)
+  })
+
+  it('[P1] should return false for full description', () => {
+    expect(isTitleOnly(
+      'Software Engineer',
+      'We are looking for a software engineer with 5+ years of experience in React, TypeScript, and Node.js. Must have strong communication skills.',
+    )).toBe(false)
+  })
+
+  it('[P2] should return false when description is long even if it contains title', () => {
+    const longDesc = 'Software Engineer role. ' + 'Requirements include deep knowledge of distributed systems. '.repeat(5)
+    expect(isTitleOnly('Software Engineer', longDesc)).toBe(false)
+  })
+})
+
+// ─── scorePartialJob ──────────────────────────────────────────────────────
+
+describe('scorePartialJob', () => {
+  it('[P1] should produce skills=0 in breakdown', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scorePartialJob('Software Engineer', resumeEmb)
+
+    expect(matchBreakdown.skills.score).toBe(0)
+  })
+
+  it('[P1] should produce salary=0 in breakdown', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scorePartialJob('Software Engineer', resumeEmb)
+
+    expect(matchBreakdown.salary.score).toBe(0)
+  })
+
+  it('[P1] should compute experience axis from title embedding', async () => {
+    mockCosineSimilarity.mockReturnValue(0.6)
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scorePartialJob('Senior SDET', resumeEmb)
+
+    expect(matchBreakdown.experience.score).toBeGreaterThan(0)
+    expect(matchBreakdown.experience.signals.semantic).toBe(0.6)
+  })
+
+  it('[P1] should embed the job title for comparison', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+    const resumeEmb = createResumeEmbeddings()
+
+    await scorePartialJob('React Developer', resumeEmb)
+
+    expect(mockComputeEmbedding).toHaveBeenCalledWith('React Developer')
+  })
+
+  it('[P1] should return integer matchScore between 0-100', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchScore } = await scorePartialJob('Software Engineer', resumeEmb)
+
+    expect(Number.isInteger(matchScore)).toBe(true)
+    expect(matchScore).toBeGreaterThanOrEqual(0)
+    expect(matchScore).toBeLessThanOrEqual(100)
+  })
+})
+
+// ─── scoreJob partial path integration ────────────────────────────────────
+
+describe('scoreJob — partial path', () => {
+  it('[P1] should use partial scoring for title-only job (no LLM call)', async () => {
+    mockGetLLMModel.mockClear()
+    mockCosineSimilarity.mockReturnValue(0.5)
+
+    const job = createNormalizedJob({
+      descriptionText: '', // title-only
+    })
+    const resumeProfile = createResumeProfile()
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scoreJob(
+      job, resumeProfile, resumeEmb, null, DEFAULT_JOB_PROFILE,
+    )
+
+    // Partial path: skills=0, salary=0
+    expect(matchBreakdown.skills.score).toBe(0)
+    expect(matchBreakdown.salary.score).toBe(0)
+    // No LLM call should be made
+    expect(mockGetLLMModel).not.toHaveBeenCalled()
+  })
+
+  it('[P1] should use partial scoring when description equals title', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+
+    const job = createNormalizedJob({
+      title: 'Software Engineer',
+      descriptionText: 'Software Engineer',
+    })
+    const resumeProfile = createResumeProfile()
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scoreJob(
+      job, resumeProfile, resumeEmb, null, DEFAULT_JOB_PROFILE,
+    )
+
+    expect(matchBreakdown.skills.score).toBe(0)
+  })
+
+  it('[P1] should use normal scoring for job with full description', async () => {
+    mockCosineSimilarity.mockReturnValue(0.5)
+
+    const job = createNormalizedJob() // has full descriptionText
+    const resumeProfile = createResumeProfile()
+    const resumeEmb = createResumeEmbeddings()
+
+    const { matchBreakdown } = await scoreJob(
+      job, resumeProfile, resumeEmb, null, DEFAULT_JOB_PROFILE,
+    )
+
+    // Normal path: skills should NOT be 0
+    expect(matchBreakdown.skills.score).toBeGreaterThan(0)
   })
 })

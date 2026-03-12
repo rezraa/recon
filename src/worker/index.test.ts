@@ -50,24 +50,28 @@ describe('worker/index', () => {
     expect(typeof mod.startWorker).toBe('function')
   })
 
-  it('[P1] should start worker and return both worker instances', async () => {
+  it('[P1] should start worker and return all worker instances', async () => {
     const mod = await import('./index')
     const result = await mod.startWorker()
     expect(result).toBeDefined()
     expect(result.discoveryWorker).toBeDefined()
     expect(result.rescoreWorker).toBeDefined()
+    expect(result.enrichWorker).toBeDefined()
     expect(result.discoveryWorker.on).toBeDefined()
     expect(result.rescoreWorker.on).toBeDefined()
+    expect(result.enrichWorker.on).toBeDefined()
   })
 
-  it('[P1] should initialize with discovery-pipeline and rescore-pipeline queues', async () => {
+  it('[P1] should initialize with discovery-pipeline, rescore-pipeline, and enrich-pipeline queues', async () => {
     const mod = await import('./index')
     const result = await mod.startWorker() as unknown as {
       discoveryWorker: { name: string }
       rescoreWorker: { name: string }
+      enrichWorker: { name: string }
     }
     expect(result.discoveryWorker.name).toBe('discovery-pipeline')
     expect(result.rescoreWorker.name).toBe('rescore-pipeline')
+    expect(result.enrichWorker.name).toBe('enrich-pipeline')
   })
 
   it('[P2] should register event listeners on worker', async () => {

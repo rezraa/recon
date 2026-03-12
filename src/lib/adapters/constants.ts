@@ -12,6 +12,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'himalayas',
     displayName: 'Himalayas',
     type: 'open',
+    mode: 'feed',
     description: 'Remote jobs across industries',
     regions: ['*'],
     attribution: {
@@ -31,6 +32,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'themuse',
     displayName: 'The Muse',
     type: 'open',
+    mode: 'feed',
     description: 'Curated US job listings',
     regions: ['US'],
     attribution: {
@@ -50,6 +52,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'jobicy',
     displayName: 'Jobicy',
     type: 'open',
+    mode: 'feed',
     description: 'Remote jobs worldwide',
     regions: ['*'],
     attribution: {
@@ -69,6 +72,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'remoteok',
     displayName: 'Remote OK',
     type: 'open',
+    mode: 'feed',
     description: 'Remote-first jobs worldwide',
     regions: ['*'],
     attribution: {
@@ -88,6 +92,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'rss',
     displayName: 'RSS Feeds',
     type: 'open',
+    mode: 'search',
     description: 'LinkedIn, Indeed, and custom job feeds',
     regions: ['*'],
     attribution: {
@@ -107,6 +112,7 @@ export const SOURCE_CONFIGS: Readonly<Record<string, SourceConfig>> = deepFreeze
     name: 'serply',
     displayName: 'Serply',
     type: 'key_required',
+    mode: 'search',
     description: 'Google for Jobs search',
     signupUrl: 'https://serply.io',
     regions: ['*'],

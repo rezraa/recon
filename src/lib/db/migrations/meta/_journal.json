@@ -64,6 +64,13 @@
       "when": 1773388800000,
       "tag": "0008_scoring-v2-extraction-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773475200000,
+      "tag": "0009_partial-and-enrichment-columns",
+      "breakpoints": true
     }
   ]
 }

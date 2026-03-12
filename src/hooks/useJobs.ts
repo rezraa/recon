@@ -17,6 +17,7 @@ export interface JobItem {
   pipelineStage: string
   discoveredAt: string | null
   isDismissed: boolean
+  partial: boolean
   benefits: string[] | null
 }
 
@@ -28,11 +29,12 @@ interface JobsResponse {
   }
 }
 
-export function useJobs(params?: { limit?: number; offset?: number; showAll?: boolean }) {
+export function useJobs(params?: { limit?: number; offset?: number; showAll?: boolean; q?: string }) {
   const searchParams = new URLSearchParams()
   if (params?.limit) searchParams.set('limit', String(params.limit))
   if (params?.offset) searchParams.set('offset', String(params.offset))
   if (params?.showAll) searchParams.set('showAll', 'true')
+  if (params?.q) searchParams.set('q', params.q)
   const query = searchParams.toString()
 
   const { data, error, isLoading, mutate } = useSWR<JobsResponse>(

@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm'
+import { and, count, eq, gte } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { getDb } from '@/lib/db/client'
-import { pipelineRunsTable } from '@/lib/db/schema'
+import { jobsTable, pipelineRunsTable } from '@/lib/db/schema'
 
 export async function GET(request: NextRequest) {
   const runId = request.nextUrl.searchParams.get('runId')
@@ -33,8 +33,9 @@ export async function GET(request: NextRequest) {
   // 'scoring' = all sources done, scoring/inserting in progress (no completedAt yet)
   // 'completed' = done (may have partial source errors)
   // 'failed' = done but ALL sources failed (zero succeeded)
-  // Stale detection: if started > 5 min ago with no completedAt, treat as completed
-  const STALE_MS = 5 * 60 * 1000
+  // Stale detection: if started > 15 min ago with no completedAt, treat as completed
+  // (LLM scoring ~34 jobs sequentially can take 10+ minutes)
+  const STALE_MS = 15 * 60 * 1000
   const sourcesCompleted = (run.sourcesSucceeded ?? 0) + (run.sourcesFailed ?? 0)
   const sourcesTotal = (run.sourcesAttempted ?? 0)
 
@@ -54,12 +55,29 @@ export async function GET(request: NextRequest) {
     status = 'completed'
   }
 
+  // Count jobs scored during this run (inserted since run started with a match_score)
+  let listingsScored = 0
+  if (status === 'scoring' && run.startedAt) {
+    const [{ count: scored }] = await db
+      .select({ count: count() })
+      .from(jobsTable)
+      .where(
+        and(
+          gte(jobsTable.discoveredAt, new Date(run.startedAt)),
+          gte(jobsTable.matchScore, 0),
+        ),
+      )
+    listingsScored = Number(scored)
+  }
+
   return NextResponse.json({
     data: {
       status,
       sources_completed: sourcesCompleted,
       sources_total: sourcesTotal,
+      listings_fetched: run.listingsFetched ?? 0,
       listings_new: run.listingsNew ?? 0,
+      listings_scored: listingsScored,
       started_at: run.startedAt,
     },
   })

@@ -48,6 +48,12 @@ describe('worker/queues', () => {
 
     expect(parseRedisConnection).toHaveBeenCalledWith('redis://localhost:6379')
   })
+
+  it('[P1] should create enrich queue with name "enrich-pipeline"', async () => {
+    const mod = await import('./queues')
+    const queue = mod.createEnrichQueue() as unknown as { name: string }
+    expect(queue.name).toBe('enrich-pipeline')
+  })
 })
 
 describe('worker import boundary', () => {

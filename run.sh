@@ -38,6 +38,21 @@ if [ "${1:-}" = "nuke" ]; then
   pkill -9 -f "next dev" 2>/dev/null || true
   pkill -9 -f "tsx.*src/worker" 2>/dev/null || true
   sleep 1
+
+  # Flush Redis before tearing down containers (clears BullMQ queues, company intel cache)
+  info "Flushing Redis..."
+  $DC exec -T redis redis-cli FLUSHALL 2>/dev/null || true
+
+  # Wipe scoring caches in Postgres before volumes are destroyed
+  # (covers the case where volumes survive or DB is external)
+  info "Clearing scoring caches in Postgres..."
+  $DC exec -T postgres psql -U recon -d recon -c "
+    UPDATE jobs SET extracted_profile = NULL, match_score = NULL, match_breakdown = NULL;
+    UPDATE resumes SET resume_extraction = NULL;
+    DELETE FROM pipeline_runs;
+  " 2>/dev/null || true
+
+  # Tear down containers and volumes
   $DC down -v
   info "All containers, volumes, and data removed."
   info "Run ./run.sh to start fresh."

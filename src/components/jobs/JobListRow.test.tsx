@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JobItem } from '@/hooks/useJobs'
 
@@ -24,6 +24,7 @@ function makeJob(overrides: Partial<JobItem> = {}): JobItem {
     pipelineStage: 'discovered',
     discoveredAt: new Date().toISOString(),
     isDismissed: false,
+    partial: false,
     benefits: null,
     ...overrides,
   }
@@ -40,6 +41,30 @@ function renderRow(overrides: Partial<JobItem> = {}) {
 }
 
 describe('JobListRow', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('triggers enrichment fetch when clicking a partial job link', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+    renderRow({ partial: true, id: 'partial-job-1', sourceUrl: 'https://linkedin.com/jobs/view/123' })
+
+    const link = screen.getByText('Software Engineer')
+    fireEvent.click(link)
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/jobs/partial-job-1/enrich', { method: 'POST' })
+  })
+
+  it('does NOT trigger enrichment when clicking a non-partial job link', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+    renderRow({ partial: false, sourceUrl: 'https://example.com/job' })
+
+    const link = screen.getByText('Software Engineer')
+    fireEvent.click(link)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('renders job title', () => {
     renderRow({ title: 'Frontend Developer' })
     expect(screen.getByText('Frontend Developer')).toBeDefined()
@@ -50,9 +75,19 @@ describe('JobListRow', () => {
     expect(screen.getByText('BigCo')).toBeDefined()
   })
 
-  it('renders match score via MatchBadge', () => {
+  it('renders match score via ScoreRing', () => {
     renderRow({ matchScore: 92 })
-    expect(screen.getByText('92%')).toBeDefined()
+    expect(screen.getByText('92')).toBeDefined()
+  })
+
+  it('renders partial score with ~ prefix via ScoreRing', () => {
+    renderRow({ matchScore: 45, partial: true })
+    expect(screen.getByText('~45')).toBeDefined()
+  })
+
+  it('renders -- for null match score', () => {
+    renderRow({ matchScore: null })
+    expect(screen.getByText('--')).toBeDefined()
   })
 
   it('renders salary range in mono font with green color', () => {

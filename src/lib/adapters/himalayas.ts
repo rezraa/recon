@@ -10,10 +10,14 @@ export const himalayasAdapter: SourceAdapter = {
   displayName: 'Himalayas',
   type: 'open',
 
-  async fetchListings(_config: AdapterConfig): Promise<RawJobListing[]> {
+  async fetchListings(config: AdapterConfig): Promise<RawJobListing[]> {
     try {
       const url = new URL(HIMALAYAS_API)
       url.searchParams.set('limit', '50')
+
+      if (config.preferences.targetTitles.length > 0) {
+        url.searchParams.set('q', config.preferences.targetTitles[0])
+      }
 
       const response = await fetchWithTimeout(url.toString())
       const data: unknown = await response.json()

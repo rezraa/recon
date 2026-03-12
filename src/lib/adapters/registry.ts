@@ -25,6 +25,14 @@ export function getKeyRequiredSources(): SourceConfig[] {
   return Object.values(SOURCE_CONFIGS).filter((s) => s.type === 'key_required')
 }
 
+export function getFeedSources(): SourceConfig[] {
+  return Object.values(SOURCE_CONFIGS).filter((s) => s.mode === 'feed')
+}
+
+export function getSearchSources(): SourceConfig[] {
+  return Object.values(SOURCE_CONFIGS).filter((s) => s.mode === 'search')
+}
+
 export function getSourcesByRegion(region: string): SourceConfig[] {
   return Object.values(SOURCE_CONFIGS).filter(
     (s) => s.regions.includes(region) || s.regions.includes('*'),
@@ -45,6 +53,11 @@ export function getAdapter(name: string): SourceAdapter | undefined {
 
 export function getAllAdapters(): SourceAdapter[] {
   return Object.values(adapterRegistry)
+}
+
+export function getFeedAdapters(): SourceAdapter[] {
+  const feedNames = new Set(getFeedSources().map((s) => s.name))
+  return Object.values(adapterRegistry).filter((a) => feedNames.has(a.name))
 }
 
 export interface SourceRecord {

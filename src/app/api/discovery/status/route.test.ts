@@ -4,16 +4,30 @@ import { beforeEach,describe, expect, it, vi } from 'vitest'
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
 let mockRunResult: unknown[] = []
+let mockScoredCount = 0
+let selectCallCount = 0
 
 vi.mock('@/lib/db/client', () => ({
   getDb: vi.fn(() => ({
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: () => Promise.resolve(mockRunResult),
-        }),
-      }),
-    }),
+    select: () => {
+      const callIndex = selectCallCount++
+      return {
+        from: () => {
+          if (callIndex === 0) {
+            // First select: pipeline_runs query
+            return {
+              where: () => ({
+                limit: () => Promise.resolve(mockRunResult),
+              }),
+            }
+          }
+          // Second select: jobs count query
+          return {
+            where: () => Promise.resolve([{ count: mockScoredCount }]),
+          }
+        },
+      }
+    },
   })),
 }))
 
@@ -32,6 +46,8 @@ describe('GET /api/discovery/status', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRunResult = []
+    mockScoredCount = 0
+    selectCallCount = 0
   })
 
   it('[P1] should return fetching status while sources being checked', async () => {
@@ -58,7 +74,7 @@ describe('GET /api/discovery/status', () => {
     expect(body.data.listings_new).toBe(30)
   })
 
-  it('[P1] should return scoring status when all sources done but not completed', async () => {
+  it('[P1] should return scoring status with scored count when all sources done but not completed', async () => {
     mockRunResult = [{
       id: 'run-123',
       startedAt: new Date(), // recent — not stale
@@ -71,17 +87,20 @@ describe('GET /api/discovery/status', () => {
       listingsDeduplicated: 5,
       errors: null,
     }]
+    mockScoredCount = 25
 
     const response = await GET(createRequest('run-123'))
     const body = await response.json()
 
     expect(body.data.status).toBe('scoring')
+    expect(body.data.listings_fetched).toBe(80)
+    expect(body.data.listings_scored).toBe(25)
   })
 
   it('[P1] should treat stale runs as completed', async () => {
     mockRunResult = [{
       id: 'run-123',
-      startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10 min ago — stale
+      startedAt: new Date(Date.now() - 20 * 60 * 1000), // 20 min ago — stale
       completedAt: null,
       sourcesAttempted: 3,
       sourcesSucceeded: 1,

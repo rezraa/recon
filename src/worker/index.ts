@@ -8,6 +8,7 @@ import { getDb } from '@/lib/db/client'
 
 import { log } from './logger'
 import { discoveryProcessor } from './processors/discovery'
+import { enrichProcessor } from './processors/enrich'
 import { rescoreProcessor } from './processors/scoring'
 
 const execAsync = promisify(exec)
@@ -72,6 +73,25 @@ export async function startWorker() {
     })
   })
 
+  // Enrich worker (concurrency=1 — serialized enrichment)
+  const enrichWorker = new Worker(
+    'enrich-pipeline',
+    enrichProcessor,
+    { connection: redisConnection, concurrency: 1 },
+  )
+
+  enrichWorker.on('ready', () => {
+    log('info', 'worker.ready', { queue: 'enrich-pipeline' })
+  })
+
+  enrichWorker.on('failed', (job, err) => {
+    log('error', 'worker.job.failed', {
+      jobName: job?.name,
+      jobId: job?.id,
+      error: err.message,
+    })
+  })
+
   // Graceful shutdown on Docker stop / SIGTERM
   let shuttingDown = false
   const shutdown = async () => {
@@ -84,7 +104,7 @@ export async function startWorker() {
     killTimer.unref()
 
     try {
-      await Promise.all([worker.close(), rescoreWorker.close()])
+      await Promise.all([worker.close(), rescoreWorker.close(), enrichWorker.close()])
     } catch {
       // Ignore errors during shutdown
     }
@@ -95,7 +115,7 @@ export async function startWorker() {
 
   log('info', 'worker.idle', { queue: 'discovery-pipeline' })
 
-  return { discoveryWorker: worker, rescoreWorker }
+  return { discoveryWorker: worker, rescoreWorker, enrichWorker }
 }
 
 // Auto-start when run directly (not when imported for testing)

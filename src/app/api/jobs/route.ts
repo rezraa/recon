@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, ilike, inArray, or, sql } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { getDb } from '@/lib/db/client'
@@ -22,6 +22,7 @@ const feedColumns = {
   matchBreakdown: jobsTable.matchBreakdown,
   pipelineStage: jobsTable.pipelineStage,
   country: jobsTable.country,
+  partial: jobsTable.partial,
   discoveredAt: jobsTable.discoveredAt,
   benefits: jobsTable.benefits,
 } as const
@@ -55,6 +56,8 @@ export async function GET(request: NextRequest) {
   const offset = Math.max(0, Number(searchParams.get('offset')) || 0)
   const showAll = searchParams.get('showAll') === 'true'
   const countries = parseCountries(searchParams.get('countries'))
+  const rawQuery = searchParams.get('q')?.trim() || null
+  const query = rawQuery && rawQuery.length <= 200 ? rawQuery : null
 
   try {
     const db = getDb()
@@ -65,6 +68,23 @@ export async function GET(request: NextRequest) {
     // Apply country filter (null = show all countries)
     if (countries) {
       conditions.push(inArray(jobsTable.country, countries))
+    }
+
+    // When no search query, exclude partial jobs from default feed
+    if (!query) {
+      conditions.push(eq(jobsTable.partial, false))
+    }
+
+    // Apply text search filter
+    if (query) {
+      const pattern = `%${query}%`
+      conditions.push(
+        or(
+          ilike(jobsTable.title, pattern),
+          ilike(jobsTable.company, pattern),
+          ilike(jobsTable.descriptionText, pattern),
+        )!,
+      )
     }
 
     let whereClause = and(...conditions)!

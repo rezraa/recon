@@ -39,10 +39,13 @@ export interface EmbeddedProfile {
  * Strip known boilerplate from job descriptions so scoring sees actual requirements.
  */
 export function stripBoilerplate(text: string): string {
+  // Match section headers — these typically start a line or follow a period/colon
+  // Ordered by specificity: most specific first, broadest last
   const sectionPatterns = [
-    /(?:what you'?ll do|responsibilities|key responsibilities)/i,
-    /(?:requirements|qualifications|what we'?re looking for|what you'?ll need|you have)/i,
-    /(?:about the role|the role|your role)/i,
+    /(?:what you'?ll do|what you'?ll bring|what you'?ll need|what we'?re looking for)/i,
+    /(?:key responsibilities|responsibilities|requirements|qualifications)/i,
+    /(?:about the role|about this (?:role|job|position|opportunity)|(?:role|position|job) (?:overview|description|summary))/i,
+    /(?:an overview of this role|the opportunity|your role|the role)/i,
   ]
 
   for (const pattern of sectionPatterns) {
@@ -133,20 +136,26 @@ Total years: ${totalYears}
 
 {"title":"<most representative job title>","domain":"<primary professional field>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":${totalYears},"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<any certs mentioned>" or empty]}`
 
-  const context = await llm.createContext()
-  try {
-    const session = llm.createSession(context)
-    const response = await session.prompt(prompt, { maxTokens: 300, temperature: 0.7 })
-    const profile = parseExtraction(response)
+  const MAX_RETRIES = 3
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const context = await llm.createContext()
+    try {
+      const session = llm.createSession(context)
+      const response = await session.prompt(prompt, { maxTokens: 300, temperature: 0.1, topP: 0.9 })
+      const profile = parseExtraction(response)
 
-    if (!profile) {
-      throw new Error('Failed to parse resume extraction from LLM response')
+      if (profile && profile.hardSkills.length > 0) {
+        return profile
+      }
+
+      // Log the bad response and retry
+      console.error(`[resume-extract] attempt ${attempt}/${MAX_RETRIES} failed to parse. Raw: ${response.slice(0, 300)}`)
+    } finally {
+      await llm.disposeContext(context)
     }
-
-    return profile
-  } finally {
-    await llm.disposeContext(context)
   }
+
+  throw new Error(`Failed to parse resume extraction after ${MAX_RETRIES} attempts`)
 }
 
 // ─── Job Extraction ─────────────────────────────────────────────────────
@@ -176,20 +185,25 @@ Description: ${cleaned}
 
 {"title":"<exact job title>","domain":"<primary professional field this role belongs to>","seniorityLevel":"<intern|junior|mid|senior|staff|principal|director|vp>","yearsExperience":<years required or 0 if not stated>,"hardSkills":["<specific tool, language, framework, platform>",...],"softSkills":["<leadership, communication, etc>",...],"certifications":["<required certs>" or empty]}`
 
-  const context = await llm.createContext()
-  try {
-    const session = llm.createSession(context)
-    const response = await session.prompt(prompt, { maxTokens: 350, temperature: 0.7 })
-    const profile = parseExtraction(response)
+  const MAX_RETRIES = 2
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const context = await llm.createContext()
+    try {
+      const session = llm.createSession(context)
+      const response = await session.prompt(prompt, { maxTokens: 250, temperature: 0.1, topP: 0.9 })
+      const profile = parseExtraction(response)
 
-    if (!profile) {
-      throw new Error('Failed to parse job extraction from LLM response')
+      if (profile) {
+        return profile
+      }
+
+      console.error(`[job-extract] attempt ${attempt}/${MAX_RETRIES} failed for "${jobTitle}". Raw: ${response.slice(0, 200)}`)
+    } finally {
+      await llm.disposeContext(context)
     }
-
-    return profile
-  } finally {
-    await llm.disposeContext(context)
   }
+
+  throw new Error(`Failed to parse job extraction for "${jobTitle}" after ${MAX_RETRIES} attempts`)
 }
 
 // ─── Profile Embedding ──────────────────────────────────────────────────
@@ -322,6 +336,12 @@ export async function scoreJob(
   userSalaryTarget?: number | null,
   cachedJobProfile?: ProfileExtraction | null,
 ): Promise<{ matchScore: number; matchBreakdown: MatchBreakdown; extractedProfile?: ProfileExtraction }> {
+  // Detect title-only jobs (from external search) — use partial scoring path
+  if (isTitleOnly(job.title, job.descriptionText)) {
+    const partial = await scorePartialJob(job.title, resumeEmbeddings)
+    return { ...partial }
+  }
+
   const salaryResult = computeSalary(userSalaryTarget ?? null, job.salaryMin, job.salaryMax)
 
   // Extract or use cached job profile
@@ -359,18 +379,15 @@ export async function scoreJob(
     experience = result.experience
     domain = result.domain
   } else {
-    // Fallback: embed full resume JSON vs full normalized job description
-    const resumeJsonText = JSON.stringify(resumeProfile)
-    const resumeFullEmb = await computeEmbedding(resumeJsonText)
+    // Fallback: extraction failed or produced 0 hardSkills.
+    // Use title embedding for experience axis (same as partial scoring)
+    // but give skills=0 since we have no reliable skill data.
+    // This intentionally produces conservative scores.
+    const titleEmb = await computeEmbedding(`${jobProfile?.seniorityLevel ?? ''} ${job.title}`)
+    const expSim = Math.max(0, cosineSimilarity(resumeEmbeddings.title, titleEmb))
 
-    const jobNormText = jobProfile
-      ? JSON.stringify(jobProfile)
-      : `${job.title}. ${stripBoilerplate(job.descriptionText).slice(0, 500)}`
-    const jobFallbackEmb = await computeEmbedding(jobNormText)
-    const fallbackSim = Math.max(0, cosineSimilarity(resumeFullEmb, jobFallbackEmb))
-
-    rawSims = { skills: fallbackSim, experience: fallbackSim }
-    const result = computeFinalScore(fallbackSim, fallbackSim, fallbackSim, salaryResult.score)
+    rawSims = { skills: 0, experience: expSim }
+    const result = computeFinalScore(0, expSim, 0, salaryResult.score)
 
     matchScore = result.score
     skills = result.skills
@@ -385,4 +402,47 @@ export async function scoreJob(
     matchBreakdown,
     ...(newlyExtracted && jobProfile ? { extractedProfile: jobProfile } : {}),
   }
+}
+
+/**
+ * Check if a job is title-only (no meaningful description).
+ * Returns true when description_text is missing, empty, or just the title.
+ */
+export function isTitleOnly(title: string, descriptionText: string): boolean {
+  const desc = descriptionText.trim()
+  if (!desc) return true
+  if (desc === title.trim()) return true
+  // Very short descriptions (< 50 chars) that are effectively just the title
+  if (desc.length < 50 && desc.toLowerCase().includes(title.trim().toLowerCase())) return true
+  return false
+}
+
+/**
+ * Partial scoring for title-only jobs (from external search).
+ * - Experience axis: embed title vs resume title embedding
+ * - Skills axis: 0 (no description to extract from)
+ * - Salary: 0 (no salary data)
+ * - No LLM call needed
+ */
+export async function scorePartialJob(
+  jobTitle: string,
+  resumeEmbeddings: EmbeddedProfile,
+): Promise<{ matchScore: number; matchBreakdown: MatchBreakdown }> {
+  const titleEmb = await computeEmbedding(jobTitle)
+  const expSim = Math.max(0, cosineSimilarity(resumeEmbeddings.title, titleEmb))
+  const experience = scaleScore(expSim)
+
+  // Skills=0, salary=0. Domain gate: title similarity is the best proxy available
+  // for title-only jobs (no description to extract domain from). This intentionally
+  // produces conservative scores — unrelated titles get gated to near-zero.
+  const domainMultiplier = scaleScore(expSim, 0.3, 0.85) / 100
+  const raw = 0 * WEIGHTS.skills + experience * WEIGHTS.experience + 0 * WEIGHTS.salary
+  const matchScore = Math.min(100, Math.round(raw * domainMultiplier))
+
+  const matchBreakdown = buildBreakdown(0, experience, 0, Math.round(domainMultiplier * 100), {
+    skills: 0,
+    experience: expSim,
+  })
+
+  return { matchScore, matchBreakdown }
 }

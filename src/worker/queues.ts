@@ -15,3 +15,10 @@ export function createRescoreQueue(): Queue {
     connection: parseRedisConnection(config.REDIS_URL),
   })
 }
+
+export function createEnrichQueue(): Queue {
+  const config = getConfig()
+  return new Queue('enrich-pipeline', {
+    connection: parseRedisConnection(config.REDIS_URL),
+  })
+}

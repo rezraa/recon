@@ -12,8 +12,11 @@ import {
   getAllAdapters,
   getAllSources,
   getEnabledAdapters,
+  getFeedAdapters,
+  getFeedSources,
   getKeyRequiredSources,
   getOpenSources,
+  getSearchSources,
   getSourceByName,
   getSourcesByRegion,
   registerAdapter,
@@ -38,6 +41,7 @@ const sourceConfigSchema = z.object({
   name: z.string().min(1),
   displayName: z.string().min(1),
   type: z.enum(['open', 'key_required']),
+  mode: z.enum(['feed', 'search']),
   description: z.string().min(1),
   signupUrl: z.string().url().optional(),
   regions: z.array(z.string().min(1)).min(1),
@@ -153,6 +157,68 @@ describe('getKeyRequiredSources', () => {
     expect(sources).toHaveLength(1)
     expect(sources[0].name).toBe('serply')
     expect(sources[0].type).toBe('key_required')
+  })
+})
+
+describe('getFeedSources', () => {
+  it('should return only feed-mode sources', () => {
+    const sources = getFeedSources()
+    expect(sources).toHaveLength(4)
+    for (const source of sources) {
+      expect(source.mode).toBe('feed')
+    }
+  })
+
+  it('should include himalayas, themuse, jobicy, remoteok', () => {
+    const names = getFeedSources().map((s) => s.name)
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok']))
+  })
+
+  it('should not include search-mode sources', () => {
+    const names = getFeedSources().map((s) => s.name)
+    expect(names).not.toContain('rss')
+    expect(names).not.toContain('serply')
+  })
+})
+
+describe('getSearchSources', () => {
+  it('should return only search-mode sources', () => {
+    const sources = getSearchSources()
+    expect(sources).toHaveLength(2)
+    for (const source of sources) {
+      expect(source.mode).toBe('search')
+    }
+  })
+
+  it('should include rss and serply', () => {
+    const names = getSearchSources().map((s) => s.name)
+    expect(names).toEqual(expect.arrayContaining(['rss', 'serply']))
+  })
+})
+
+describe('getFeedAdapters', () => {
+  it('should return only feed-mode adapters', () => {
+    const adapters = getFeedAdapters()
+    expect(adapters).toHaveLength(4)
+    const names = adapters.map((a) => a.name)
+    expect(names).toEqual(expect.arrayContaining(['himalayas', 'themuse', 'jobicy', 'remoteok']))
+  })
+
+  it('should not include search-mode adapters', () => {
+    const names = getFeedAdapters().map((a) => a.name)
+    expect(names).not.toContain('rss')
+    expect(names).not.toContain('serply')
+  })
+})
+
+describe('getAllSources returns all sources regardless of mode', () => {
+  it('should return all 6 sources including both feed and search modes', () => {
+    const sources = getAllSources()
+    expect(sources).toHaveLength(6)
+    const feedCount = sources.filter((s) => s.mode === 'feed').length
+    const searchCount = sources.filter((s) => s.mode === 'search').length
+    expect(feedCount).toBe(4)
+    expect(searchCount).toBe(2)
   })
 })
 

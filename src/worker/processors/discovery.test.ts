@@ -90,6 +90,17 @@ const mockFetchListings = vi.fn().mockResolvedValue([
   },
 ])
 
+vi.mock('@/lib/adapters/constants', () => ({
+  SOURCE_CONFIGS: {
+    himalayas: { name: 'himalayas', mode: 'feed' },
+    themuse: { name: 'themuse', mode: 'feed' },
+    jobicy: { name: 'jobicy', mode: 'feed' },
+    remoteok: { name: 'remoteok', mode: 'feed' },
+    rss: { name: 'rss', mode: 'search' },
+    serply: { name: 'serply', mode: 'search' },
+  },
+}))
+
 vi.mock('@/lib/adapters/registry', () => ({
   getEnabledAdapters: vi.fn(() => [
     {
@@ -402,5 +413,35 @@ describe('discoveryProcessor', () => {
     await expect(
       discoveryProcessor(createMockJob({ runId: 'run-123', sourceNames: ['himalayas'] })),
     ).resolves.not.toThrow()
+  })
+
+  it('[P1] should skip search-mode sources (rss, serply) during discovery', async () => {
+    mockSelectResult.length = 0
+    mockSelectResult.push(
+      { id: 'src-1', name: 'himalayas', isEnabled: true, config: null },
+      { id: 'src-2', name: 'rss', isEnabled: true, config: null },
+      { id: 'src-3', name: 'serply', isEnabled: true, config: null },
+    )
+
+    const mockRssFetch = vi.fn().mockResolvedValue([])
+    const mockSerplyFetch = vi.fn().mockResolvedValue([])
+
+    const { getEnabledAdapters } = await import('@/lib/adapters/registry')
+    vi.mocked(getEnabledAdapters).mockReturnValue([
+      { name: 'himalayas', displayName: 'Himalayas', type: 'open', fetchListings: mockFetchListings },
+      { name: 'rss', displayName: 'RSS Feeds', type: 'open', fetchListings: mockRssFetch },
+      { name: 'serply', displayName: 'Serply', type: 'key_required', fetchListings: mockSerplyFetch },
+    ])
+
+    await discoveryProcessor(createMockJob({
+      runId: 'run-123',
+      sourceNames: ['himalayas', 'rss', 'serply'],
+    }))
+
+    // Only feed-mode adapter (himalayas) should be fetched
+    expect(mockFetchListings).toHaveBeenCalledOnce()
+    // Search-mode adapters should NOT be fetched
+    expect(mockRssFetch).not.toHaveBeenCalled()
+    expect(mockSerplyFetch).not.toHaveBeenCalled()
   })
 })

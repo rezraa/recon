@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq'
 import { and, eq, sql } from 'drizzle-orm'
 
+import { SOURCE_CONFIGS } from '@/lib/adapters/constants'
 import { getEnabledAdapters } from '@/lib/adapters/registry'
 import type { AdapterConfig, SourceAdapter } from '@/lib/adapters/types'
 import { computeEmbedding } from '@/lib/ai/embeddings'
@@ -18,7 +19,7 @@ import {
   type ProfileExtraction,
   type EmbeddedProfile,
 } from '@/lib/pipeline/scoring'
-import type { NormalizedJob } from '@/lib/pipeline/types'
+import type { MatchBreakdown, NormalizedJob } from '@/lib/pipeline/types'
 
 import { log } from '../logger'
 
@@ -77,13 +78,39 @@ async function loadResumeForScoring(): Promise<LoadedResume | null> {
 
 // ─── Preferences Loading ────────────────────────────────────────────────────
 
+/**
+ * Get the most recent job title from the resume to use as a search term.
+ * Passed directly to job board APIs — they handle fuzzy matching.
+ */
+function getResumeSearchTitle(jobTitles: string[]): string | null {
+  if (jobTitles.length === 0) return null
+  const title = jobTitles[0].trim()
+  return title.length >= 3 ? title : null
+}
+
 async function loadPreferences(): Promise<AdapterConfig['preferences']> {
   const db = getDb()
   const rows = await db.select().from(schema.preferencesTable).limit(1)
   const prefs = rows[0]
 
+  let targetTitles = Array.isArray(prefs?.targetTitles) ? prefs.targetTitles as string[] : []
+
+  // If no targetTitles set by user, derive from resume
+  if (targetTitles.length === 0) {
+    const resumeRow = await getResume()
+    if (resumeRow) {
+      const parsedData = resumeRow.parsedData as { jobTitles?: string[] } | null
+      const jobTitles = Array.isArray(parsedData?.jobTitles) ? parsedData.jobTitles : []
+      const derived = getResumeSearchTitle(jobTitles)
+      if (derived) {
+        targetTitles = [derived]
+        log('info', 'pipeline.preferences.derived', { from: jobTitles[0], derived })
+      }
+    }
+  }
+
   return {
-    targetTitles: Array.isArray(prefs?.targetTitles) ? prefs.targetTitles as string[] : [],
+    targetTitles,
     locations: Array.isArray(prefs?.locations) ? prefs.locations as string[] : [],
     remotePreference: prefs?.remotePreference ?? null,
   }
@@ -95,48 +122,234 @@ async function embedJobs(jobs: NormalizedJob[]): Promise<void> {
   for (const job of jobs) {
     const text = `${job.title} ${job.company} ${job.descriptionText.slice(0, 500)}`
     const embeddingFloat32 = await computeEmbedding(text)
-    job.embedding = Array.from(embeddingFloat32)
+    const embedding = Array.from(embeddingFloat32)
+
+    // Guard against NaN/Infinity which pgvector rejects (error 22P02)
+    if (embedding.some(v => !Number.isFinite(v))) {
+      log('warn', 'pipeline.embed.bad-values', {
+        title: job.title,
+        company: job.company,
+        hasNaN: embedding.some(v => Number.isNaN(v)),
+        hasInfinity: embedding.some(v => !Number.isFinite(v)),
+      })
+      job.embedding = undefined
+    } else {
+      job.embedding = embedding
+    }
   }
 }
 
-// ─── DB Insert (new jobs only — called AFTER dedup) ─────────────────────────
+// ─── Score + Insert (batch of 5 — score sequentially, flush batch to DB) ─────
 
-async function insertNewJobs(jobs: NormalizedJob[]): Promise<void> {
+const SCORE_BATCH_SIZE = 5
+
+interface ScoredJob {
+  job: NormalizedJob
+  matchScore: number
+  matchBreakdown: MatchBreakdown
+  extractedProfile?: ProfileExtraction
+}
+
+async function scoreAndInsertJobs(
+  jobs: NormalizedJob[],
+  resume: LoadedResume,
+  salaryTarget: number | null,
+): Promise<number> {
+  if (jobs.length === 0) return 0
+  const db = getDb()
+  let insertFailures = 0
+
+  for (let i = 0; i < jobs.length; i += SCORE_BATCH_SIZE) {
+    const batch = jobs.slice(i, i + SCORE_BATCH_SIZE)
+
+    // Score sequentially (one LLM call at a time)
+    const scored: ScoredJob[] = []
+    for (const job of batch) {
+      const { matchScore, matchBreakdown, extractedProfile } = await scoreJob(
+        job, resume.profile, resume.embeddings, salaryTarget,
+      )
+      scored.push({ job, matchScore, matchBreakdown, extractedProfile })
+    }
+
+    // Flush batch to DB (skip individual failures so one bad row doesn't kill the run)
+    for (const { job, matchScore, matchBreakdown, extractedProfile } of scored) {
+      try {
+        await db
+          .insert(schema.jobsTable)
+          .values({
+            externalId: job.externalId,
+            sourceName: job.sourceName,
+            title: job.title,
+            company: job.company,
+            descriptionHtml: job.descriptionHtml ?? null,
+            descriptionText: job.descriptionText,
+            salaryMin: job.salaryMin != null ? Math.round(job.salaryMin) : null,
+            salaryMax: job.salaryMax != null ? Math.round(job.salaryMax) : null,
+            location: job.location ?? null,
+            country: job.country,
+            isRemote: job.isRemote ?? false,
+            sourceUrl: job.sourceUrl,
+            applyUrl: job.applyUrl ?? null,
+            benefits: job.benefits ?? null,
+            rawData: job.rawData,
+            embedding: job.embedding ?? null,
+            sources: job.sources,
+            pipelineStage: job.pipelineStage,
+            discoveredAt: job.discoveredAt,
+            searchVector: sql`to_tsvector('english', ${job.searchText})`,
+            matchScore,
+            matchBreakdown,
+            extractedProfile: extractedProfile ?? null,
+          })
+          .onConflictDoNothing({
+            target: [schema.jobsTable.sourceName, schema.jobsTable.externalId],
+          })
+      } catch (err) {
+        // Dig through error chain to find the actual Postgres error
+        const outer = err as Record<string, unknown>
+        const cause = (outer.cause ?? outer.original ?? outer.error) as Record<string, unknown> | undefined
+        const pgCode = outer.code ?? cause?.code
+        const pgDetail = outer.detail ?? cause?.detail
+        const pgConstraint = outer.constraint ?? cause?.constraint
+        const pgSeverity = outer.severity ?? cause?.severity
+        const pgHint = outer.hint ?? cause?.hint
+
+        // Extract error message without the SQL dump
+        const rawMsg = String(outer.message ?? err)
+        const queryIdx = rawMsg.indexOf('Failed query:')
+        const errorPart = queryIdx > 0 ? rawMsg.slice(0, queryIdx).trim() : ''
+        // Also check for message after the query (some drivers put it there)
+        const afterQuery = queryIdx >= 0 ? rawMsg.slice(queryIdx + 200).trim().slice(0, 200) : ''
+
+        // Check embedding for bad values
+        const embeddingIssues = job.embedding
+          ? {
+              hasNaN: job.embedding.some(v => Number.isNaN(v)),
+              hasInfinity: job.embedding.some(v => !Number.isFinite(v)),
+              sample: job.embedding.slice(0, 5),
+              min: Math.min(...job.embedding),
+              max: Math.max(...job.embedding),
+            }
+          : null
+
+        log('error', 'pipeline.insert.failed', {
+          jobId: job.externalId,
+          source: job.sourceName,
+          title: job.title,
+          company: job.company,
+          pgCode,
+          pgDetail,
+          pgConstraint,
+          pgSeverity,
+          pgHint,
+          causeMessage: cause ? String(cause.message ?? cause.name ?? '') : undefined,
+          causeRoutine: cause?.routine,
+          causeWhere: cause?.where,
+          causeLine: cause?.line,
+          causeFile: cause?.file,
+          descriptionLength: job.descriptionText?.length,
+          searchTextLength: job.searchText?.length,
+          embeddingLength: job.embedding?.length,
+          embeddingIssues,
+        })
+        insertFailures++
+      }
+    }
+  }
+  if (insertFailures > 0) {
+    log('warn', 'pipeline.insert.failures', { total: jobs.length, failed: insertFailures })
+  }
+  return jobs.length - insertFailures
+}
+
+// ─── Insert unscored jobs (no resume available) ─────────────────────────────
+
+async function insertUnscoredJobs(jobs: NormalizedJob[]): Promise<void> {
   if (jobs.length === 0) return
   const db = getDb()
 
   for (const job of jobs) {
-    await db
-      .insert(schema.jobsTable)
-      .values({
-        externalId: job.externalId,
-        sourceName: job.sourceName,
+    try {
+      await db
+        .insert(schema.jobsTable)
+        .values({
+          externalId: job.externalId,
+          sourceName: job.sourceName,
+          title: job.title,
+          company: job.company,
+          descriptionHtml: job.descriptionHtml ?? null,
+          descriptionText: job.descriptionText,
+          salaryMin: job.salaryMin ?? null,
+          salaryMax: job.salaryMax ?? null,
+          location: job.location ?? null,
+          country: job.country,
+          isRemote: job.isRemote ?? false,
+          sourceUrl: job.sourceUrl,
+          applyUrl: job.applyUrl ?? null,
+          benefits: job.benefits ?? null,
+          rawData: job.rawData,
+          embedding: job.embedding ?? null,
+          sources: job.sources,
+          pipelineStage: job.pipelineStage,
+          discoveredAt: job.discoveredAt,
+          searchVector: sql`to_tsvector('english', ${job.searchText})`,
+        })
+        .onConflictDoNothing({
+          target: [schema.jobsTable.sourceName, schema.jobsTable.externalId],
+        })
+    } catch (err) {
+      const pgError = err as { code?: string; detail?: string; constraint?: string; column?: string; message?: string }
+      const rawMsg = pgError.message ?? String(err)
+      const shortMsg = rawMsg.includes('Failed query:')
+        ? rawMsg.slice(0, rawMsg.indexOf('Failed query:')).trim() || rawMsg.slice(0, 200)
+        : rawMsg.slice(0, 200)
+      log('error', 'pipeline.insert.failed', {
+        jobId: job.externalId,
+        source: job.sourceName,
         title: job.title,
-        company: job.company,
-        descriptionHtml: job.descriptionHtml ?? null,
-        descriptionText: job.descriptionText,
-        salaryMin: job.salaryMin ?? null,
-        salaryMax: job.salaryMax ?? null,
-        location: job.location ?? null,
-        country: job.country,
-        isRemote: job.isRemote ?? false,
-        sourceUrl: job.sourceUrl,
-        applyUrl: job.applyUrl ?? null,
-        benefits: job.benefits ?? null,
-        rawData: job.rawData,
-        embedding: job.embedding ?? null,
-        sources: job.sources,
-        pipelineStage: job.pipelineStage,
-        discoveredAt: job.discoveredAt,
-        searchVector: sql`to_tsvector('english', ${job.searchText})`,
+        pgCode: pgError.code,
+        pgDetail: pgError.detail,
+        pgConstraint: pgError.constraint,
+        pgColumn: pgError.column,
+        error: shortMsg,
+        searchTextLength: job.searchText?.length,
       })
-      .onConflictDoNothing({
-        target: [schema.jobsTable.sourceName, schema.jobsTable.externalId],
-      })
+    }
   }
 }
 
-// ─── Score and Update ───────────────────────────────────────────────────────
+// ─── Score + Update existing jobs (dedup matches needing score) ──────────────
+
+async function scoreAndUpdateExistingJobs(
+  jobs: NormalizedJob[],
+  resume: LoadedResume,
+  salaryTarget: number | null,
+): Promise<number> {
+  if (jobs.length === 0) return 0
+  const db = getDb()
+
+  for (const job of jobs) {
+    const { matchScore, matchBreakdown, extractedProfile } = await scoreJob(
+      job, resume.profile, resume.embeddings, salaryTarget,
+    )
+    await db
+      .update(schema.jobsTable)
+      .set({
+        matchScore,
+        matchBreakdown,
+        extractedProfile: extractedProfile ?? null,
+      })
+      .where(
+        and(
+          eq(schema.jobsTable.sourceName, job.sourceName),
+          eq(schema.jobsTable.externalId, job.externalId),
+        ),
+      )
+  }
+  return jobs.length
+}
+
+// ─── Salary Target ──────────────────────────────────────────────────────────
 
 async function loadSalaryTarget(): Promise<number | null> {
   const prefs = await getPreferences()
@@ -144,39 +357,6 @@ async function loadSalaryTarget(): Promise<number | null> {
   return prefs.salaryMax
     ? Math.round((prefs.salaryMin + prefs.salaryMax) / 2)
     : prefs.salaryMin
-}
-
-async function scoreAndUpdateJobs(
-  jobs: NormalizedJob[],
-  resume: LoadedResume,
-  salaryTarget: number | null,
-): Promise<void> {
-  const db = getDb()
-  const BATCH_SIZE = 5
-
-  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
-    const batch = jobs.slice(i, i + BATCH_SIZE)
-    await Promise.all(
-      batch.map(async (job) => {
-        const { matchScore, matchBreakdown, extractedProfile } = await scoreJob(
-          job, resume.profile, resume.embeddings, salaryTarget,
-        )
-        await db
-          .update(schema.jobsTable)
-          .set({
-            matchScore,
-            matchBreakdown,
-            ...(extractedProfile ? { extractedProfile } : {}),
-          })
-          .where(
-            and(
-              eq(schema.jobsTable.sourceName, job.sourceName),
-              eq(schema.jobsTable.externalId, job.externalId),
-            ),
-          )
-      }),
-    )
-  }
 }
 
 // ─── Pipeline Run Updates ───────────────────────────────────────────────────
@@ -323,7 +503,7 @@ async function fetchAllSources(
   return successfulFetches
 }
 
-// ─── Phase 2: Normalize, embed, dedup, insert, score ────────────────────────
+// ─── Phase 2: Normalize, embed, dedup, score, insert ────────────────────────
 
 async function processAllJobs(
   fetches: FetchResult[],
@@ -364,30 +544,31 @@ async function processAllJobs(
     duplicates: dedupResult.duplicateCount,
   })
 
-  // Single insert pass
-  await insertNewJobs(dedupResult.new)
-  log('info', 'pipeline.insert.done', { count: dedupResult.new.length })
+  // Score + insert new jobs one at a time (each appears in feed immediately)
+  if (resume && dedupResult.new.length > 0) {
+    log('info', 'pipeline.score.start', { count: dedupResult.new.length })
+    const count = await scoreAndInsertJobs(dedupResult.new, resume, salaryTarget)
+    log('info', 'pipeline.insert.done', { count, scored: true })
+  } else {
+    await insertUnscoredJobs(dedupResult.new)
+    log('info', 'pipeline.insert.done', { count: dedupResult.new.length, scored: false })
+  }
 
-  // Update run counters for dedup/insert
+  // Update run counters
   await incrementRunCounters(runId, {
     listingsNew: dedupResult.new.length,
     listingsDeduplicated: dedupResult.duplicateCount,
   })
 
-  // Single scoring pass — all new jobs + unscored duplicates
-  if (resume) {
-    const jobsToScore = [...dedupResult.new]
-    if (dedupResult.updatedNeedScore) {
-      jobsToScore.push(...dedupResult.updatedNeedScore)
-    }
-    if (jobsToScore.length > 0) {
-      log('info', 'pipeline.score.start', { count: jobsToScore.length })
-      await scoreAndUpdateJobs(jobsToScore, resume, salaryTarget)
-      log('info', 'pipeline.score.done', {
-        scored: jobsToScore.length,
-        skippedAlreadyScored: dedupResult.updated.length - (dedupResult.updatedNeedScore?.length ?? 0),
-      })
-    }
+  // Score + update existing dedup matches that had no score (already in DB)
+  if (resume && dedupResult.updatedNeedScore && dedupResult.updatedNeedScore.length > 0) {
+    log('info', 'pipeline.score.existing', { count: dedupResult.updatedNeedScore.length })
+    const count = await scoreAndUpdateExistingJobs(dedupResult.updatedNeedScore, resume, salaryTarget)
+    log('info', 'pipeline.score.done', {
+      newScored: dedupResult.new.length,
+      existingScored: count,
+      skippedAlreadyScored: dedupResult.updated.length - dedupResult.updatedNeedScore.length,
+    })
   }
 }
 
@@ -415,6 +596,7 @@ export async function discoveryProcessor(job: Job<DiscoveryJobData>): Promise<vo
     .filter((s) => s.isEnabled && sourceNames.includes(s.name))
     .map((s) => ({ name: s.name, isEnabled: true as boolean }))
   const adapters = getEnabledAdapters(enabledSources)
+    .filter((a) => SOURCE_CONFIGS[a.name]?.mode === 'feed')
 
   // Phase 1: Fetch all sources in parallel (network I/O only)
   const fetches = await fetchAllSources(adapters, preferences, runId)

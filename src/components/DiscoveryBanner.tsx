@@ -10,7 +10,7 @@ interface DiscoveryBannerProps {
 }
 
 export function DiscoveryBanner({ runId, onComplete }: DiscoveryBannerProps) {
-  const { status, sourcesCompleted, sourcesTotal, listingsNew, isComplete } =
+  const { status, sourcesCompleted, sourcesTotal, listingsFetched, listingsNew, listingsScored, isComplete } =
     useDiscoveryStatus(runId)
   const onCompleteRef = useRef(onComplete)
   useEffect(() => {
@@ -53,11 +53,18 @@ export function DiscoveryBanner({ runId, onComplete }: DiscoveryBannerProps) {
 
   // Fetching or scoring state
   const isFetching = status === 'fetching'
+  const isScoring = status === 'scoring'
   const message = isFetching
     ? sourcesTotal > 0
       ? `— ${sourcesCompleted} of ${sourcesTotal} sources checked. Hang tight, this can take a minute.`
       : '— Starting up, please be patient...'
-    : '— Analyzing and matching each listing to your resume. This is the slow part — hang tight.'
+    : listingsFetched > 0
+      ? `— Scored ${listingsScored} of ${listingsFetched} listings.`
+      : '— Analyzing and matching each listing to your resume.'
+
+  const progressPct = isScoring && listingsFetched > 0
+    ? Math.round((listingsScored / listingsFetched) * 100)
+    : 0
 
   return (
     <div className="rounded-md border border-[var(--primary)] bg-[hsl(210_65%_75%_/_0.1)] px-4 py-3 text-sm">
@@ -67,6 +74,14 @@ export function DiscoveryBanner({ runId, onComplete }: DiscoveryBannerProps) {
       <span className="text-[var(--fg-muted)]">
         {message}
       </span>
+      {isScoring && listingsFetched > 0 && (
+        <div className="mt-2 h-1.5 w-full rounded-full bg-[hsl(210_65%_75%_/_0.15)]">
+          <div
+            className="h-full rounded-full bg-[var(--primary)] transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }

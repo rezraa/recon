@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockReplace, nextNavigationMock } = vi.hoisted(() => {
   const mockReplace = vi.fn()
@@ -90,6 +90,7 @@ describe('Root Page - Feed', () => {
           salaryMin: 100000,
           salaryMax: 150000,
           matchScore: 85,
+          partial: false,
           sourceName: 'himalayas',
           sources: [{ name: 'himalayas', external_id: 'ext-1', fetched_at: '2026-03-09' }],
           discoveredAt: '2026-03-09T00:00:00Z',
@@ -103,7 +104,7 @@ describe('Root Page - Feed', () => {
     render(<Page />)
     expect(screen.getByText('Software Engineer')).toBeInTheDocument()
     expect(screen.getByText('TestCo')).toBeInTheDocument()
-    expect(screen.getByText('85%')).toBeInTheDocument()
+    expect(screen.getByText('85')).toBeInTheDocument()
     expect(screen.getByText('1 job discovered')).toBeInTheDocument()
   })
 
@@ -191,6 +192,63 @@ describe('Root Page - Feed', () => {
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith('/api/discovery/run', { method: 'POST' })
     })
+  })
+
+  it('[P1] should NOT auto-trigger discovery when feed was previously populated', async () => {
+    // First render with jobs
+    mockUseJobs.mockReturnValue({
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'himalayas', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      total: 1,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/discovery/active')) {
+        return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ data: { runId: 'run-auto' } }), { status: 202, headers: { 'Content-Type': 'application/json' } })
+    })
+    const { rerender } = render(<Page />)
+
+    // Now simulate empty results (e.g. from a search filter)
+    mockUseJobs.mockReturnValue({
+      jobs: [],
+      total: 0,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    rerender(<Page />)
+
+    // Discovery run should NOT have been triggered
+    const discoveryCalls = fetchSpy.mock.calls.filter(
+      ([url]) => typeof url === 'string' && url.includes('/api/discovery/run'),
+    )
+    expect(discoveryCalls).toHaveLength(0)
+  })
+
+  it('[P1] should keep search input mounted during loading', () => {
+    // First render with jobs so hasLoadedJobs becomes true
+    mockUseJobs.mockReturnValue({
+      jobs: [{ id: 'j1', title: 'Dev', company: 'Co', salaryMin: null, salaryMax: null, matchScore: 50, sourceName: 'himalayas', sources: [], discoveredAt: '2026-03-09T00:00:00Z', sourceUrl: null }],
+      total: 1,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    const { rerender } = render(<Page />)
+    expect(screen.getByLabelText('Search jobs')).toBeInTheDocument()
+
+    // Simulate SWR refetching (isLoading becomes true)
+    mockUseJobs.mockReturnValue({
+      jobs: [],
+      total: 0,
+      isLoading: true,
+      mutate: vi.fn(),
+    })
+    rerender(<Page />)
+
+    // Search input should still be there
+    expect(screen.getByLabelText('Search jobs')).toBeInTheDocument()
   })
 
   it('[P1] should show error when discovery fails', async () => {

@@ -1,11 +1,12 @@
 'use client'
 
-import { Settings } from 'lucide-react'
+import { Search, Settings, X } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DiscoveryBanner } from '@/components/DiscoveryBanner'
 import { JobListRow } from '@/components/jobs/JobListRow'
+import { WildSearchButton } from '@/components/jobs/WildSearchButton'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useJobs } from '@/hooks/useJobs'
 import { useResumeRedirect } from '@/hooks/useResume'
 
@@ -41,13 +43,22 @@ export default function Home() {
     }
     return false
   })
-  const { jobs, total, isLoading: isJobsLoading, mutate } = useJobs(
-    showAll ? { showAll: true } : undefined,
-  )
+  const [searchInput, setSearchInput] = useState('')
+  const debouncedQuery = useDebouncedValue(searchInput, 300)
+  const { jobs, total, isLoading: isJobsLoading, mutate } = useJobs({
+    ...(showAll ? { showAll: true } : {}),
+    ...(debouncedQuery ? { q: debouncedQuery } : {}),
+  })
+  const [hasLoadedJobs, setHasLoadedJobs] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
   const [discoveryError, setDiscoveryError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Track whether we've ever had jobs (so UI stays stable during search/loading)
+  useEffect(() => {
+    if (!isJobsLoading && jobs.length > 0) setHasLoadedJobs(true)
+  }, [isJobsLoading, jobs.length])
 
   // Restore active discovery run on page load (survives refresh)
   useEffect(() => {
@@ -116,7 +127,7 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!isEmpty && (
+          {hasLoadedJobs && (
             <Button
               onClick={handleRunDiscovery}
               disabled={isStarting || runId !== null}
@@ -141,7 +152,36 @@ export default function Home() {
         <DiscoveryBanner runId={runId} onComplete={handleDiscoveryComplete} />
       </div>
 
-      {!isEmpty && !isLoading && (
+      {hasLoadedJobs && (
+        <div className="mb-4 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Filter jobs by title, company, or description..."
+            className="w-full rounded-md border border-input bg-background px-10 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Search jobs"
+          />
+          {searchInput && (
+            <button
+              onClick={() => setSearchInput('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {debouncedQuery && (
+        <div className="mb-4">
+          <WildSearchButton query={debouncedQuery} onSearchComplete={() => mutate()} />
+        </div>
+      )}
+
+      {hasLoadedJobs && (
         <div className="mb-4 flex items-center gap-2">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input
@@ -179,8 +219,14 @@ export default function Home() {
         <div className="discovery-pulse" />
       )}
 
-      {isEmpty && !runId && resumeData && (
+      {isEmpty && !hasLoadedJobs && !runId && resumeData && (
         <AutoDiscovery onStart={handleRunDiscovery} />
+      )}
+
+      {!isLoading && jobs.length === 0 && hasLoadedJobs && debouncedQuery && (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No jobs matching &quot;{debouncedQuery}&quot;
+        </p>
       )}
 
       {!isLoading && jobs.length > 0 && (

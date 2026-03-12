@@ -1,7 +1,7 @@
 import { Building2, Globe, RefreshCw } from 'lucide-react'
 import { memo } from 'react'
 
-import { MatchBadge } from '@/components/common/MatchBadge'
+import { ScoreRing } from '@/components/common/ScoreRing'
 import { BenefitTagList } from '@/components/common/BenefitTag'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { JobItem } from '@/hooks/useJobs'
@@ -71,6 +71,12 @@ export const JobListRow = memo(function JobListRow({ job, selected, className }:
   const workStyle = inferWorkStyle(job.isRemote, job.location)
   const WorkIcon = workStyle.icon
 
+  const handleJobClick = () => {
+    if (job.partial && job.id) {
+      fetch(`/api/jobs/${job.id}/enrich`, { method: 'POST' }).catch(() => {})
+    }
+  }
+
   return (
     <TableRow
       className={cn(
@@ -80,7 +86,11 @@ export const JobListRow = memo(function JobListRow({ job, selected, className }:
       )}
     >
       <TableCell className="text-center">
-        <MatchBadge score={job.matchScore} />
+        {job.matchScore !== null ? (
+          <ScoreRing score={job.matchScore} partial={job.partial} />
+        ) : (
+          <span className="text-xs text-[var(--fg-muted)] font-mono">--</span>
+        )}
       </TableCell>
       <TableCell>
         <div className="min-w-0">
@@ -90,6 +100,7 @@ export const JobListRow = memo(function JobListRow({ job, selected, className }:
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium hover:underline truncate block"
+              onClick={handleJobClick}
             >
               {title}
             </a>

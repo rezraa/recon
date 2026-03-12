@@ -185,6 +185,46 @@ describe('GET /api/jobs', () => {
   })
 })
 
+describe('GET /api/jobs with search query', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockJobsResult = [mockJob]
+    mockCountResult = [{ count: 1 }]
+  })
+
+  it('should accept q query parameter', async () => {
+    const response = await GET(createRequest({ q: 'SDET' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('should return results for matching query', async () => {
+    const response = await GET(createRequest({ q: 'Software' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.jobs).toHaveLength(1)
+  })
+
+  it('should handle empty q parameter', async () => {
+    const response = await GET(createRequest({ q: '' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+
+  it('should handle whitespace-only q parameter', async () => {
+    const response = await GET(createRequest({ q: '   ' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveProperty('jobs')
+  })
+})
+
 describe('parseCountries', () => {
   it('should return default countries when param is null', () => {
     expect(parseCountries(null)).toEqual(['US', 'Unknown'])

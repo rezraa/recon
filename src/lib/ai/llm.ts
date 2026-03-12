@@ -9,7 +9,7 @@ type LlamaModel = any
 type LlamaContext = any
 
 interface LLMSession {
-  prompt: (text: string, opts?: { maxTokens?: number; temperature?: number }) => Promise<string>
+  prompt: (text: string, opts?: { maxTokens?: number; temperature?: number; topP?: number }) => Promise<string>
 }
 
 export interface LLMInstance {

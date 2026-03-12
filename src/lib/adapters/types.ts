@@ -13,6 +13,7 @@ export interface SourceConfig {
   name: string
   displayName: string
   type: 'open' | 'key_required'
+  mode: 'feed' | 'search'
   description: string
   signupUrl?: string
   regions: string[] // ISO 3166-1 alpha-2 codes: ['US'], ['US', 'GB'], ['*'] for global/remote
